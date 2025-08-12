@@ -1,0 +1,14 @@
+# Source files (we only publish dist/)
+src/
+examples/
+docs/
+build/
+
+# Development files
+.gitignore
+webpack.config.js
+*.tgz
+
+# Tests
+test/
+coverage/

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jampolls SDK - Advanced Features</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .demo-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .demo-card h3 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .demo-card p {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #f97316;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #ea580c;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        .theme-switcher {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .theme-btn {
+            padding: 6px 12px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .theme-btn.active {
+            border-color: #f97316;
+            background: #f97316;
+            color: white;
+        }
+        
+        .analytics-panel {
+            background: #1f2937;
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .analytics-panel h4 {
+            margin-bottom: 12px;
+            color: #f97316;
+        }
+        
+        .analytics-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #374151;
+        }
+        
+        .analytics-item:last-child {
+            border-bottom: none;
+        }
+        
+        .floating-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .floating-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #f97316;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+        
+        .floating-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.6);
+        }
+        
+        .auto-embed-demo {
+            background: #f9fafb;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .floating-widget {
+                left: 20px;
+                right: 20px;
+                width: auto;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Jampolls Advanced Demo</h1>
+            <p>Explore all the powerful features of the Jampolls SDK</p>
+        </div>
+        
+        <div class="demo-grid">
+            <!-- Theme Switching Demo -->
+            <div class="demo-card">
+                <h3>🎨 Dynamic Theming</h3>
+                <p>Switch between different themes and see the poll adapt instantly.</p>
+                
+                <div class="theme-switcher">
+                    <button class="theme-btn active" onclick="switchTheme('auto', this)">Auto</button>
+                    <button class="theme-btn" onclick="switchTheme('light', this)">Light</button>
+                    <button class="theme-btn" onclick="switchTheme('dark', this)">Dark</button>
+                    <button class="theme-btn" onclick="switchTheme('jampolls', this)">Jampolls</button>
+                </div>
+                
+                <div id="theme-demo-poll"></div>
+            </div>
+            
+            <!-- Multiple Polls Demo -->
+            <div class="demo-card">
+                <h3>📊 Multiple Polls</h3>
+                <p>Manage multiple polls on the same page with different configurations.</p>
+                
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="loadPoll('poll1', 'demo-key-1')">Load Poll 1</button>
+                    <button class="btn btn-primary" onclick="loadPoll('poll2', 'demo-key-2')">Load Poll 2</button>
+                    <button class="btn btn-secondary" onclick="refreshAll()">Refresh All</button>
+                </div>
+                
+                <div id="multi-poll-1" style="margin-bottom: 16px;"></div>
+                <div id="multi-poll-2"></div>
+            </div>
+            
+            <!-- Auto-Embed Demo -->
+            <div class="demo-card">
+                <h3>⚡ Auto-Embed</h3>
+                <p>Polls that initialize automatically using data attributes.</p>
+                
+                <div class="auto-embed-demo">
+                    <p>This poll will auto-embed when the page loads:</p>
+                    <!-- This will auto-embed on page load -->
+                    <div data-jampolls-embed="auto-demo-key" 
+                         data-theme="light" 
+                         data-show-results="true"
+                         data-auto-height="true">
+                        Loading auto-embed poll...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Event Handling Demo -->
+            <div class="demo-card">
+                <h3>🔧 Event Handling</h3>
+                <p>See real-time events and analytics from poll interactions.</p>
+                
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="setupEventDemo()">Initialize Events Demo</button>
+                    <button class="btn btn-secondary" onclick="clearAnalytics()">Clear Analytics</button>
+                </div>
+                
+                <div id="events-demo-poll"></div>
+                
+                <div class="analytics-panel">
+                    <h4>📈 Real-time Analytics</h4>
+                    <div id="analytics-content">
+                        <div class="analytics-item">
+                            <span>Poll Loads:</span>
+                            <span id="load-count">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span>Votes Cast:</span>
+                            <span id="vote-count">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span>Errors:</span>
+                            <span id="error-count">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span>Last Action:</span>
+                            <span id="last-action">None</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Poll Widget -->
+    <button class="floating-toggle" onclick="toggleFloatingPoll()">🎯</button>
+    <div class="floating-widget" id="floating-poll">
+        <div style="padding: 16px; border-bottom: 1px solid #e5e7eb;">
+            <h4 style="margin: 0; color: #1f2937;">Quick Poll</h4>
+            <button onclick="toggleFloatingPoll()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer;">×</button>
+        </div>
+        <div id="floating-poll-content"></div>
+    </div>
+
+    <!-- Include the Jampolls SDK -->
+    <script>
+        // Demo SDK implementation for testing
+        window.JamPolls = {
+            version: '1.0.0',
+            widgets: new Map(),
+            
+            embed: function(embedKey, containerId, options = {}) {
+                console.log('JamPolls.embed called:', { embedKey, containerId, options });
+                
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.error('Container not found:', containerId);
+                    return null;
+                }
+                
+                // Create demo poll based on theme
+                const theme = options.theme || 'auto';
+                const isDark = theme === 'dark';
+                const isJampolls = theme === 'jampolls';
+                
+                let bgColor = 'white';
+                let textColor = '#1f2937';
+                let borderColor = '#e5e7eb';
+                
+                if (isDark) {
+                    bgColor = '#1f2937';
+                    textColor = '#f9fafb';
+                    borderColor = '#4b5563';
+                } else if (isJampolls) {
+                    bgColor = 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)';
+                    textColor = 'white';
+                    borderColor = '#f97316';
+                }
+                
+                container.innerHTML = `
+                    <div style="
+                        border: 2px solid ${borderColor}; 
+                        border-radius: 12px; 
+                        background: ${bgColor}; 
+                        color: ${textColor};
+                        font-family: system-ui;
+                        overflow: hidden;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    ">
+                        <div style="padding: 20px; border-bottom: 1px solid ${borderColor};">
+                            <h3 style="margin: 0 0 8px 0;">Demo Poll - ${embedKey}</h3>
+                            <div style="font-size: 12px; opacity: 0.7;">Theme: ${theme} | 42 votes</div>
+                        </div>
+                        <div style="padding: 16px 20px;">
+                            <div style="margin-bottom: 12px;">
+                                <div style="
+                                    padding: 12px; 
+                                    background: ${isDark ? '#374151' : isJampolls ? 'rgba(255,255,255,0.1)' : '#f9fafb'}; 
+                                    border-radius: 8px; 
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    border: 1px solid ${borderColor};
+                                " 
+                                onmouseover="this.style.transform='translateY(-2px)'"
+                                onmouseout="this.style.transform='translateY(0)'"
+                                onclick="this.style.background='#dcfce7'; this.innerHTML='✓ Option A - Voted! (45%)'">
+                                    📊 Option A - Click to vote (30%)
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="
+                                    padding: 12px; 
+                                    background: ${isDark ? '#374151' : isJampolls ? 'rgba(255,255,255,0.1)' : '#f9fafb'}; 
+                                    border-radius: 8px; 
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    border: 1px solid ${borderColor};
+                                " 
+                                onmouseover="this.style.transform='translateY(-2px)'"
+                                onmouseout="this.style.transform='translateY(0)'"
+                                onclick="this.style.background='#dcfce7'; this.innerHTML='✓ Option B - Voted! (55%)'">
+                                    📈 Option B - Click to vote (50%)
+                                </div>
+                            </div>
+                            <div>
+                                <div style="
+                                    padding: 12px; 
+                                    background: ${isDark ? '#374151' : isJampolls ? 'rgba(255,255,255,0.1)' : '#f9fafb'}; 
+                                    border-radius: 8px; 
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    border: 1px solid ${borderColor};
+                                " 
+                                onmouseover="this.style.transform='translateY(-2px)'"
+                                onmouseout="this.style.transform='translateY(0)'"
+                                onclick="this.style.background='#dcfce7'; this.innerHTML='✓ Option C - Voted! (20%)'">
+                                    📉 Option C - Click to vote (20%)
+                                </div>
+                            </div>
+                        </div>
+                        ${options.showBranding !== false ? `
+                        <div style="padding: 12px 20px; border-top: 1px solid ${borderColor}; text-align: center;">
+                            <a href="https://jampolls.com" style="color: #f97316; text-decoration: none; font-size: 12px;">
+                                🎯 Powered by Jampolls
+                            </a>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                const widget = { embedKey, container, options };
+                this.widgets.set(containerId, widget);
+                
+                // Trigger callbacks
+                if (options.onLoad) {
+                    setTimeout(() => options.onLoad({ 
+                        embed_key: embedKey,
+                        poll_data: { question: 'Demo Poll Question', votes_count: 42 }
+                    }), 100);
+                }
+                
+                return widget;
+            },
+            
+            getWidget: function(containerId) {
+                return this.widgets.get(containerId);
+            },
+            
+            removeWidget: function(containerId) {
+                const container = document.getElementById(containerId);
+                if (container) container.innerHTML = '';
+                this.widgets.delete(containerId);
+            },
+            
+            autoEmbed: function() {
+                const widgets = document.querySelectorAll('[data-jampolls-embed]');
+                widgets.forEach((element, index) => {
+                    const embedKey = element.getAttribute('data-jampolls-embed');
+                    const containerId = element.id || `jampolls-auto-${index}`;
+                    
+                    if (!element.id) {
+                        element.id = containerId;
+                    }
+                    
+                    const options = {
+                        theme: element.getAttribute('data-theme') || 'auto',
+                        showResults: element.getAttribute('data-show-results') !== 'false',
+                        autoHeight: element.getAttribute('data-auto-height') !== 'false',
+                        showBranding: element.getAttribute('data-show-branding') !== 'false'
+                    };
+                    
+                    this.embed(embedKey, containerId, options);
+                });
+            }
+        };
+    </script>
+    
+    <script>
+        // Analytics tracking
+        let analytics = {
+            loads: 0,
+            votes: 0,
+            errors: 0,
+            lastAction: 'Page loaded'
+        };
+        
+        // Initialize theme demo
+        JamPolls.embed('theme-demo-key', 'theme-demo-poll', {
+            theme: 'auto',
+            onLoad: () => updateAnalytics('load', 'Theme demo loaded'),
+            onVote: () => updateAnalytics('vote', 'Theme demo vote'),
+            onError: () => updateAnalytics('error', 'Theme demo error')
+        });
+        
+        // Theme switching function
+        function switchTheme(theme, button) {
+            // Update active button
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Update widget theme
+            const widget = JamPolls.getWidget('theme-demo-poll');
+            if (widget) {
+                widget.options.theme = theme;
+                widget.render();
+            }
+            
+            updateAnalytics('action', `Switched to ${theme} theme`);
+        }
+        
+        // Load different polls
+        function loadPoll(containerId, embedKey) {
+            const fullContainerId = `multi-${containerId}`;
+            
+            // Remove existing widget
+            JamPolls.removeWidget(fullContainerId);
+            
+            // Create new widget
+            JamPolls.embed(embedKey, fullContainerId, {
+                theme: 'light',
+                showBranding: false,
+                onLoad: () => updateAnalytics('load', `${containerId} loaded`),
+                onVote: () => updateAnalytics('vote', `${containerId} vote`),
+                onError: () => updateAnalytics('error', `${containerId} error`)
+            });
+        }
+        
+        // Refresh all polls
+        function refreshAll() {
+            JamPolls.widgets.forEach((widget, containerId) => {
+                widget.refresh();
+            });
+            updateAnalytics('action', 'Refreshed all polls');
+        }
+        
+        // Setup events demo
+        function setupEventDemo() {
+            JamPolls.embed('events-demo-key', 'events-demo-poll', {
+                theme: 'dark',
+                showResults: true,
+                onLoad: (data) => {
+                    updateAnalytics('load', 'Events demo loaded');
+                    console.log('Events demo poll loaded:', data);
+                },
+                onVote: (result) => {
+                    updateAnalytics('vote', `Vote: ${result.action}`);
+                    console.log('Events demo vote:', result);
+                },
+                onError: (error) => {
+                    updateAnalytics('error', `Error: ${error.message}`);
+                    console.error('Events demo error:', error);
+                }
+            });
+        }
+        
+        // Floating poll toggle
+        function toggleFloatingPoll() {
+            const widget = document.getElementById('floating-poll');
+            const isVisible = widget.style.display === 'block';
+            
+            if (isVisible) {
+                widget.style.display = 'none';
+            } else {
+                widget.style.display = 'block';
+                
+                // Initialize floating poll if not already done
+                if (!JamPolls.getWidget('floating-poll-content')) {
+                    JamPolls.embed('floating-demo-key', 'floating-poll-content', {
+                        theme: 'light',
+                        showBranding: false,
+                        autoHeight: true,
+                        onLoad: () => updateAnalytics('load', 'Floating poll loaded'),
+                        onVote: () => updateAnalytics('vote', 'Floating poll vote'),
+                        onError: () => updateAnalytics('error', 'Floating poll error')
+                    });
+                }
+            }
+        }
+        
+        // Update analytics display
+        function updateAnalytics(type, action) {
+            if (type === 'load') analytics.loads++;
+            if (type === 'vote') analytics.votes++;
+            if (type === 'error') analytics.errors++;
+            analytics.lastAction = action;
+            
+            document.getElementById('load-count').textContent = analytics.loads;
+            document.getElementById('vote-count').textContent = analytics.votes;
+            document.getElementById('error-count').textContent = analytics.errors;
+            document.getElementById('last-action').textContent = analytics.lastAction;
+        }
+        
+        // Clear analytics
+        function clearAnalytics() {
+            analytics = { loads: 0, votes: 0, errors: 0, lastAction: 'Analytics cleared' };
+            updateAnalytics('action', 'Analytics cleared');
+        }
+        
+        // Initialize analytics display
+        updateAnalytics('action', 'Page loaded');
+        
+        // Example of programmatic control
+        setTimeout(() => {
+            // Demonstrate programmatic poll switching after 5 seconds
+            console.log('Advanced demo ready! All features are loaded.');
+        }, 5000);
+        
+        // Handle escape key to close floating poll
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const widget = document.getElementById('floating-poll');
+                if (widget.style.display === 'block') {
+                    toggleFloatingPoll();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

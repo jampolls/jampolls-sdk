@@ -1,0 +1,79 @@
+{
+    "name": "@jampolls/sdk",
+    "version": "1.0.0",
+    "description": "Official JavaScript SDK for embedding Jampolls interactive polls on any website",
+    "main": "dist/jampolls.min.js",
+    "module": "src/core/jampolls.js",
+    "unpkg": "dist/jampolls.min.js",
+    "jsdelivr": "dist/jampolls.min.js",
+    "types": "types/index.d.ts",
+    "files": [
+        "dist/",
+        "src/",
+        "types/",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "npm run build:dev && npm run build:prod",
+        "build:dev": "webpack --mode development",
+        "build:prod": "webpack --mode production",
+        "dev": "webpack serve --mode development",
+        "serve": "python -m http.server 8000",
+        "test": "echo \"Tests coming soon!\" && exit 0",
+        "lint": "eslint src/",
+        "clean": "rimraf dist/",
+        "prepublishOnly": "npm run build"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jampollsclub/jampolls-sdk.git"
+    },
+    "keywords": [
+        "polls",
+        "voting",
+        "surveys",
+        "widgets",
+        "embed",
+        "interactive",
+        "jampolls",
+        "sdk",
+        "javascript"
+    ],
+    "author": "Jampolls Team <support@jampolls.com> (https://jampolls.com)",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/jampollsclub/jampolls-sdk/issues"
+    },
+    "homepage": "https://jampolls.com/sdk",
+    "devDependencies": {
+        "@babel/core": "^7.28.0",
+        "@babel/preset-env": "^7.28.0",
+        "babel-loader": "^9.2.1",
+        "css-loader": "^6.11.0",
+        "eslint": "^8.44.0",
+        "rimraf": "^5.0.0",
+        "style-loader": "^3.3.4",
+        "terser-webpack-plugin": "^5.3.14",
+        "webpack": "^5.101.0",
+        "webpack-cli": "^5.1.4",
+        "webpack-dev-server": "^5.2.2"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "browserslist": [
+        "> 1%",
+        "last 2 versions",
+        "not dead",
+        "not ie 11"
+    ],
+    "cdn": {
+        "production": "https://cdn.jampolls.com/jampolls.min.js",
+        "development": "https://cdn.jampolls.com/jampolls.js"
+    },
+    "directories": {
+        "doc": "docs",
+        "example": "examples"
+    }
+}
