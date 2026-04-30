@@ -13,8 +13,9 @@ export function JampollsWidget({ embedKey, theme, vars, onLoad, onVote, onError,
 
   useEffect(() => {
     if (!ref.current || !embedKey) return;
+    const container = ref.current;
 
-    const widget = JamPolls.embed(embedKey, ref.current, {
+    JamPolls.embed(embedKey, container, {
       theme,
       vars,
       onLoad,
@@ -23,9 +24,9 @@ export function JampollsWidget({ embedKey, theme, vars, onLoad, onVote, onError,
     });
 
     return () => {
-      if (ref.current) JamPolls.removeWidget(ref.current);
+      JamPolls.removeWidget(container);
     };
-  }, [embedKey, apiUrl]);
+  }, [embedKey, theme, vars, onLoad, onVote, onError]);
 
   return createElement('div', { ref, className, style });
 }

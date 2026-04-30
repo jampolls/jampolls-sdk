@@ -71,6 +71,7 @@ export default function Page() {
     <JampollsWidget
       embedKey="YOUR_EMBED_KEY"
       theme="dark"
+      vars={{ '--jp-primary': '#7c3aed', '--jp-radius': '12px', 'max-width': '480px' }}
       onVote={({ optionId, removed }) => console.log(optionId, removed)}
     />
   );
@@ -82,10 +83,16 @@ export default function Page() {
 ```vue
 <script setup>
 import { JampollsWidget } from '@jampolls/sdk/vue';
+
+const vars = {
+  '--jp-primary': '#7c3aed',
+  '--jp-radius': '12px',
+  'max-width': '480px',
+};
 </script>
 
 <template>
-  <JampollsWidget embed-key="YOUR_EMBED_KEY" theme="auto" @vote="onVote" />
+  <JampollsWidget embed-key="YOUR_EMBED_KEY" theme="auto" :vars="vars" @vote="onVote" />
 </template>
 ```
 

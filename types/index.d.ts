@@ -75,14 +75,3 @@ declare const JamPolls: {
 };
 
 export default JamPolls;
-
-// ── React ────────────────────────────────────────────────────────────────────
-import type { FC, CSSProperties } from 'react';
-
-export interface JampollsWidgetProps extends WidgetOptions {
-  embedKey: string;
-  className?: string;
-  style?: CSSProperties;
-}
-
-export declare const JampollsWidget: FC<JampollsWidgetProps>;

@@ -7,7 +7,7 @@ import JamPolls from '../core/index.js';
  * Usage (Options API):
  *   import { JampollsWidget } from '@jampolls/sdk/vue';
  *   components: { JampollsWidget }
- *   <JampollsWidget embed-key="your_embed_key" theme="auto" />
+ *   <JampollsWidget embed-key="your_embed_key" theme="auto" :vars="{ '--jp-primary': '#7c3aed' }" />
  */
 export const JampollsWidget = defineComponent({
   name: 'JampollsWidget',
@@ -15,6 +15,7 @@ export const JampollsWidget = defineComponent({
   props: {
     embedKey: { type: String, required: true },
     theme: { type: String, default: 'auto' },
+    vars: { type: Object, default: undefined },
   },
 
   emits: ['load', 'vote', 'error'],
@@ -27,21 +28,32 @@ export const JampollsWidget = defineComponent({
       if (!containerRef.value || !props.embedKey) return;
       widget = JamPolls.embed(props.embedKey, containerRef.value, {
         theme: props.theme,
+        vars: props.vars,
         onLoad: data => emit('load', data),
         onVote: event => emit('vote', event),
         onError: err => emit('error', err),
       });
     }
 
+    function unmount() {
+      if (!widget) return;
+      if (containerRef.value) {
+        JamPolls.removeWidget(containerRef.value);
+      } else {
+        widget.destroy();
+      }
+      widget = null;
+    }
+
     onMounted(mount);
 
-    watch(() => props.embedKey, () => {
-      if (widget) widget.destroy();
+    watch(() => [props.embedKey, props.theme, props.vars], () => {
+      unmount();
       mount();
-    });
+    }, { deep: true });
 
     onUnmounted(() => {
-      if (widget) widget.destroy();
+      unmount();
     });
 
     return () => h('div', { ref: containerRef });

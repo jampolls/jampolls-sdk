@@ -9,11 +9,20 @@
   "types": "types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./types/index.d.ts",
       "import": "./src/core/index.js",
       "require": "./dist/jampolls.js"
     },
-    "./react": "./src/integrations/react.js",
-    "./vue": "./src/integrations/vue.js"
+    "./react": {
+      "types": "./types/react.d.ts",
+      "import": "./src/integrations/react.js",
+      "default": "./src/integrations/react.js"
+    },
+    "./vue": {
+      "types": "./types/vue.d.ts",
+      "import": "./src/integrations/vue.js",
+      "default": "./src/integrations/vue.js"
+    }
   },
   "files": [
     "dist/",

@@ -36,11 +36,16 @@
     <div id="poll-manual"></div>
   </section>
 
-  <!-- ── 3. Dark theme with callbacks ── -->
+  <!-- ── 3. Dark theme with callbacks and CSS variable overrides ── -->
   <section>
-    <h2>3 · Dark theme + callbacks</h2>
+    <h2>3 · Dark theme + callbacks + custom vars</h2>
     <pre>JamPolls.embed('YOUR_EMBED_KEY', '#poll-dark', {
   theme: 'dark',
+  vars: {
+    '--jp-primary': '#7c3aed',
+    '--jp-radius': '12px',
+    'max-width': '480px',
+  },
   onLoad: data => console.log('loaded', data),
   onVote: e  => console.log('voted',  e),
   onError: e => console.error(e),
@@ -67,6 +72,11 @@
 
     JamPolls.embed('YOUR_EMBED_KEY', '#poll-dark', {
       theme: 'dark',
+      vars: {
+        '--jp-primary': '#7c3aed',
+        '--jp-radius': '12px',
+        'max-width': '480px',
+      },
       onLoad:  function(data) { console.log('Poll loaded:', data.poll_data.question); },
       onVote:  function(e)    { console.log('Voted:', e.optionId, '| removed:', e.removed); },
       onError: function(err)  { console.error('Error:', err.message); },
