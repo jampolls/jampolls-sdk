@@ -8,7 +8,7 @@ import JamPolls from '../core/index.js';
  *   import { JampollsWidget } from '@jampolls/sdk/react';
  *   <JampollsWidget embedKey="your_embed_key" theme="auto" />
  */
-export function JampollsWidget({ embedKey, theme, vars, apiUrl, onLoad, onVote, onError, className, style }) {
+export function JampollsWidget({ embedKey, theme, layout, vars, apiUrl, onLoad, onVote, onError, className, style }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -17,6 +17,7 @@ export function JampollsWidget({ embedKey, theme, vars, apiUrl, onLoad, onVote, 
 
     JamPolls.embed(embedKey, container, {
       theme,
+      layout,
       vars,
       apiUrl,
       onLoad,
@@ -27,7 +28,7 @@ export function JampollsWidget({ embedKey, theme, vars, apiUrl, onLoad, onVote, 
     return () => {
       JamPolls.removeWidget(container);
     };
-  }, [embedKey, theme, vars, apiUrl, onLoad, onVote, onError]);
+  }, [embedKey, theme, layout, vars, apiUrl, onLoad, onVote, onError]);
 
   return createElement('div', { ref, className, style });
 }

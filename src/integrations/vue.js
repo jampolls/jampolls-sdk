@@ -15,6 +15,7 @@ export const JampollsWidget = defineComponent({
   props: {
     embedKey: { type: String, required: true },
     theme: { type: String, default: 'auto' },
+    layout: { type: String, default: undefined },
     vars: { type: Object, default: undefined },
     apiUrl: { type: String, default: undefined },
   },
@@ -29,6 +30,7 @@ export const JampollsWidget = defineComponent({
       if (!containerRef.value || !props.embedKey) return;
       widget = JamPolls.embed(props.embedKey, containerRef.value, {
         theme: props.theme,
+        layout: props.layout,
         vars: props.vars,
         apiUrl: props.apiUrl,
         onLoad: data => emit('load', data),
@@ -49,7 +51,7 @@ export const JampollsWidget = defineComponent({
 
     onMounted(mount);
 
-    watch(() => [props.embedKey, props.theme, props.vars, props.apiUrl], () => {
+    watch(() => [props.embedKey, props.theme, props.layout, props.vars, props.apiUrl], () => {
       unmount();
       mount();
     }, { deep: true });
