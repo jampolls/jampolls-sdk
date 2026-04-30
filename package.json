@@ -1,6 +1,6 @@
 {
   "name": "@jampolls/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official JavaScript SDK for embedding Jampolls interactive polls on any website",
   "main": "dist/jampolls.js",
   "module": "src/core/index.js",
@@ -57,8 +57,12 @@
     "vue": ">=3"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "vue": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
