@@ -443,9 +443,10 @@
   </footer>
 
   <!-- SDK -->
-  <script src="../dist/jampolls.js"></script>
+  <script src="../dist/jampolls.min.js"></script>
   <script>
     JamPolls.embed('YOUR_EMBED_KEY', '#jp-poll', {
+      apiUrl: 'http://localhost:8000',
       theme: 'auto',
       onVote: function(e) {
         console.log('Voted:', e);

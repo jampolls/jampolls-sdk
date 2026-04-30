@@ -6,10 +6,12 @@ export class Widget {
     this.embedKey = embedKey;
     this.container = container;
     this.opts = opts || {};
-    this.api = new JampollsApi();
+    this.api = new JampollsApi(this.opts.apiUrl);
     this.data = null;
-    this.votedOptionId = null;
+    this.votedOptionIds = new Set();
+    this.pendingOptionIds = new Set();
     this.submitting = false;
+    this.feedback = null;
     this._destroyed = false;
   }
 
@@ -22,6 +24,7 @@ export class Widget {
     try {
       this.data = await this.api.fetchPoll(this.embedKey);
       if (this._destroyed) return;
+      this.feedback = null;
       this._render();
       if (this.opts.onLoad) this.opts.onLoad(this.data);
     } catch (err) {
@@ -33,20 +36,93 @@ export class Widget {
 
   async _vote(optionId) {
     if (this.submitting || this._destroyed) return;
+    const pollData = this.data?.poll_data || {};
+    const allowMultipleVotes = Boolean(pollData.allow_multiple_votes);
+    const canChangeVote = pollData.can_change_vote !== false;
+    const alreadyVoted = this.votedOptionIds.has(optionId);
+    const hasVoted = this.votedOptionIds.size > 0;
+
+    if (allowMultipleVotes) {
+      if (!canChangeVote && hasVoted) return;
+      if (this.pendingOptionIds.has(optionId)) {
+        this.pendingOptionIds.delete(optionId);
+      } else {
+        this.pendingOptionIds.add(optionId);
+      }
+      this.feedback = null;
+      this._render();
+      return;
+    }
+
+    if (!canChangeVote && (alreadyVoted || (!allowMultipleVotes && hasVoted))) return;
+
     this.submitting = true;
+    this.feedback = null;
     this._render();
 
-    const removing = this.votedOptionId === optionId;
+    const removing = alreadyVoted;
 
     try {
       await this.api.vote(this.embedKey, optionId, removing);
-      this.votedOptionId = removing ? null : optionId;
+      if (allowMultipleVotes) {
+        if (removing) {
+          this.votedOptionIds.delete(optionId);
+        } else {
+          this.votedOptionIds.add(optionId);
+        }
+      } else {
+        this.votedOptionIds = removing ? new Set() : new Set([optionId]);
+      }
 
       // Re-fetch for up-to-date counts
       this.data = await this.api.fetchPoll(this.embedKey);
+      this.feedback = null;
 
       if (this.opts.onVote) this.opts.onVote({ optionId, removed: removing });
     } catch (err) {
+      this.feedback = { type: 'error', message: err.message || 'Could not submit your vote. Please try again.' };
+      if (this.opts.onError) this.opts.onError(err);
+    } finally {
+      this.submitting = false;
+      if (!this._destroyed) this._render();
+    }
+  }
+
+  async _submitMultipleVotes() {
+    if (this.submitting || this._destroyed) return;
+    const pollData = this.data?.poll_data || {};
+    if (!pollData.allow_multiple_votes) return;
+    if (pollData.can_change_vote === false && this.votedOptionIds.size > 0) return;
+
+    const selectedIds = new Set(this.pendingOptionIds);
+    const addedOptionIds = Array.from(selectedIds).filter(id => !this.votedOptionIds.has(id));
+    const removedOptionIds = Array.from(this.votedOptionIds).filter(id => !selectedIds.has(id));
+    if (addedOptionIds.length === 0 && removedOptionIds.length === 0) return;
+
+    this.submitting = true;
+    this.feedback = null;
+    this._render();
+
+    try {
+      await Promise.all([
+        ...addedOptionIds.map(id => this.api.vote(this.embedKey, id, false)),
+        ...removedOptionIds.map(id => this.api.vote(this.embedKey, id, true)),
+      ]);
+
+      this.votedOptionIds = selectedIds;
+      this.pendingOptionIds = new Set(selectedIds);
+      this.data = await this.api.fetchPoll(this.embedKey);
+      this.feedback = null;
+
+      if (this.opts.onVote) {
+        this.opts.onVote({
+          optionIds: Array.from(selectedIds),
+          addedOptionIds,
+          removedOptionIds,
+        });
+      }
+    } catch (err) {
+      this.feedback = { type: 'error', message: err.message || 'Could not submit your vote. Please try again.' };
       if (this.opts.onError) this.opts.onError(err);
     } finally {
       this.submitting = false;
@@ -57,9 +133,14 @@ export class Widget {
   _render() {
     if (!this.data || this._destroyed) return;
     renderPoll(this.container, this.data, {
-      votedOptionId: this.votedOptionId,
+      votedOptionIds: Array.from(this.votedOptionIds),
+      selectedOptionIds: Array.from(
+        this.data.poll_data?.allow_multiple_votes ? this.pendingOptionIds : this.votedOptionIds
+      ),
       submitting: this.submitting,
+      feedback: this.feedback,
       onOptionClick: id => this._vote(id),
+      onSubmit: () => this._submitMultipleVotes(),
       themeOverride: this.opts.theme,
       vars: this.opts.vars,
     });

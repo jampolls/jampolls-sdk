@@ -3,9 +3,26 @@ import { getVoterId } from './voter.js';
 const BASE_URL = 'https://hub.jampolls.com';
 const SDK_VERSION = '1.0.0';
 
+function getApiError(data, status) {
+  return (
+    data?.errors?.message ||
+    data?.errors?.error ||
+    data?.error ||
+    `HTTP ${status}`
+  );
+}
+
+function unwrapApiResponse(data, status) {
+  if (data?.success === false) {
+    throw new Error(getApiError(data, status));
+  }
+
+  return data?.data || data;
+}
+
 export class JampollsApi {
-  constructor() {
-    this.baseUrl = BASE_URL;
+  constructor(baseUrl = BASE_URL) {
+    this.baseUrl = String(baseUrl || BASE_URL).replace(/\/+$/, '');
   }
 
   async fetchPoll(embedKey) {
@@ -13,8 +30,8 @@ export class JampollsApi {
       headers: { 'X-SDK-Version': SDK_VERSION },
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return data;
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
   }
 
   async vote(embedKey, optionId, remove = false) {
@@ -31,7 +48,7 @@ export class JampollsApi {
       }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return data;
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
   }
 }

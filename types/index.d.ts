@@ -11,6 +11,11 @@ export interface WidgetOptions {
    * vars: { '--jp-primary': '#7c3aed', '--jp-radius': '4px', 'max-width': '100%' }
    */
   vars?: Record<string, string>;
+  /**
+   * Override the API origin. Defaults to https://hub.jampolls.com.
+   * Intended for local development and testing.
+   */
+  apiUrl?: string;
   /** Called after poll data loads successfully. */
   onLoad?: (data: PollData) => void;
   /** Called after a vote is submitted or removed. */
@@ -22,31 +27,50 @@ export interface WidgetOptions {
 export interface PollOption {
   id: number;
   text: string;
+  image: string | null;
   votes_count: number;
   placement: number;
 }
 
 export interface PollData {
+  embed_key: string;
+  theme: 'auto' | 'light' | 'dark' | 'jampolls';
+  show_results: boolean;
+  show_branding: boolean;
+  auto_height: boolean;
   poll_data: {
+    id: number;
     question: string;
+    image: string | null;
     options: PollOption[];
     votes_count: number;
     is_active: boolean;
     poll_type: string;
+    allow_multiple_votes: boolean;
+    can_change_vote: boolean;
+    allow_anonymous: boolean;
     created_at: string;
   };
   embed_settings: {
-    theme: string;
+    theme: 'auto' | 'light' | 'dark' | 'jampolls';
     show_results: boolean;
     show_branding: boolean;
     auto_height: boolean;
   };
 }
 
-export interface VoteEvent {
+export interface SingleVoteEvent {
   optionId: number;
   removed: boolean;
 }
+
+export interface MultipleVoteEvent {
+  optionIds: number[];
+  addedOptionIds: number[];
+  removedOptionIds: number[];
+}
+
+export type VoteEvent = SingleVoteEvent | MultipleVoteEvent;
 
 export interface JampollsWidgetInstance {
   /** Re-fetch and re-render the poll. */

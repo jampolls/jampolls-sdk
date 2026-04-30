@@ -62,9 +62,61 @@
   margin-bottom: 4px;
 }
 
+.jp-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .jp-meta {
   font-size: 12px;
   color: var(--jp-text-muted);
+}
+
+.jp-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.jp-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--jp-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.jp-poll-image {
+  display: block;
+  width: calc(100% - 24px);
+  max-height: 360px;
+  object-fit: cover;
+  margin: 4px 12px 10px;
+  border-radius: var(--jp-option-radius);
+}
+
+.jp-feedback {
+  margin: 2px 12px 10px;
+  padding: 9px 10px;
+  border-radius: var(--jp-option-radius);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.jp-feedback-error {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+}
+
+.jp-theme-dark .jp-feedback-error {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(248, 113, 113, 0.35);
 }
 
 .jp-options {
@@ -112,6 +164,38 @@
   border-color: var(--jp-primary);
 }
 
+.jp-options-multiple .jp-option {
+  align-items: center;
+}
+
+.jp-choice-indicator {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 1.5px solid var(--jp-border);
+  border-radius: 4px;
+  background: var(--jp-bg);
+}
+
+.jp-option.jp-voted .jp-choice-indicator {
+  border-color: var(--jp-primary);
+  background: var(--jp-primary);
+}
+
+.jp-option.jp-voted .jp-choice-indicator::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* Results bar (shown after voting) */
 .jp-bar {
   position: absolute;
@@ -132,6 +216,16 @@
   font-weight: 500;
 }
 
+.jp-option-image {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
 .jp-option.jp-voted .jp-option-text {
   color: var(--jp-primary);
   font-weight: 600;
@@ -144,6 +238,33 @@
   color: var(--jp-primary);
   min-width: 38px;
   text-align: right;
+}
+
+.jp-actions {
+  padding: 0 12px 14px;
+}
+
+.jp-submit {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: var(--jp-primary);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.jp-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.jp-submit:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 /* ── Loading ── */
@@ -186,10 +307,20 @@
 }
 
 .jp-footer a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 11px;
   color: var(--jp-text-muted);
   text-decoration: none;
   letter-spacing: 0.01em;
+}
+
+.jp-brand-logo {
+  display: block;
+  width: 70px;
+  height: auto;
 }
 
 .jp-footer a:hover {

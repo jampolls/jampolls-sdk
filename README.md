@@ -108,6 +108,7 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
     '--jp-radius':  '4px',
     'max-width':    '100%',
   },
+  apiUrl: 'http://localhost:8000', // optional, local development only
   onLoad:  (data)  => console.log(data),
   onVote:  (event) => console.log(event.optionId, event.removed),
   onError: (err)   => console.error(err),
@@ -118,6 +119,7 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
 |---|---|---|
 | `theme` | `'auto' \| 'light' \| 'dark' \| 'jampolls'` | Overrides the poll owner's dashboard theme. `auto` follows the visitor's system preference. |
 | `vars` | `Record<string, string>` | CSS custom property overrides applied directly to the widget. Use this to match your brand. |
+| `apiUrl` | `string` | API origin override for local development. Defaults to `https://hub.jampolls.com`. |
 | `onLoad` | `(data: PollData) => void` | Fired when poll data loads successfully. |
 | `onVote` | `(event: VoteEvent) => void` | Fired after a vote is submitted or removed. |
 | `onError` | `(error: Error) => void` | Fired on network or API errors. |
