@@ -8,28 +8,70 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build SDK
-      run: npm run build
-    
-    - name: Run tests
-      run: npm test
 
-    - name: Publish to NPM
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        npm publish --access public
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDK
+        run: npm run build
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      # ── npm publish ──────────────────────────────────────────────────────────
+      - name: Publish to npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm publish --access public
+
+      # ── CDN deploy (S3 + CloudFront) ─────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload to S3
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+
+          # Versioned path — never overwritten, safe to cache forever
+          aws s3 cp dist/jampolls.min.js \
+            s3://jampolls-cdn/v${VERSION}/jampolls.min.js \
+            --cache-control "public, max-age=31536000, immutable" \
+            --content-type "application/javascript"
+
+          aws s3 cp dist/jampolls.js \
+            s3://jampolls-cdn/v${VERSION}/jampolls.js \
+            --cache-control "public, max-age=31536000, immutable" \
+            --content-type "application/javascript"
+
+          # Latest path — overwritten on every release, short cache
+          aws s3 cp dist/jampolls.min.js \
+            s3://jampolls-cdn/latest/jampolls.min.js \
+            --cache-control "public, max-age=300, stale-while-revalidate=86400" \
+            --content-type "application/javascript"
+
+          aws s3 cp dist/jampolls.js \
+            s3://jampolls-cdn/latest/jampolls.js \
+            --cache-control "public, max-age=300, stale-while-revalidate=86400" \
+            --content-type "application/javascript"
+
+      - name: Invalidate CloudFront cache for /latest/
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/latest/*"
