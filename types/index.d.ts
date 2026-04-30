@@ -5,6 +5,14 @@ export interface WidgetOptions {
    */
   theme?: 'auto' | 'light' | 'dark' | 'jampolls';
   /**
+   * Widget layout mode.
+   * - `'vertical'` — stacked top-to-bottom (question → image → options). Best for narrow containers.
+   * - `'horizontal'` — two-column split (question + image left, options right). Best for wide sections.
+   * - `'auto'` — switches automatically based on container width (default). Vertical ≤ 520 px, horizontal above.
+   * @default 'auto'
+   */
+  layout?: 'vertical' | 'horizontal' | 'auto';
+  /**
    * CSS custom property overrides applied directly to the widget element.
    * Use this to customise colours, border radius, max-width, etc.
    * @example

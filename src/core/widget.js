@@ -13,10 +13,38 @@ export class Widget {
     this.submitting = false;
     this.feedback = null;
     this._destroyed = false;
+    this._isHorizontal = false;
+    this._ro = null;
+  }
+
+  _getLayoutClass() {
+    const layout = this.opts.layout || 'auto';
+    if (layout === 'horizontal') return 'jp-layout-horizontal';
+    if (layout === 'auto' && this._isHorizontal) return 'jp-layout-horizontal';
+    return '';
+  }
+
+  _applyLayout() {
+    const el = this.container.querySelector('.jp-widget');
+    if (el) el.classList.toggle('jp-layout-horizontal', this._getLayoutClass() === 'jp-layout-horizontal');
+  }
+
+  _setupLayoutObserver() {
+    if ((this.opts.layout || 'auto') !== 'auto') return;
+    if (typeof ResizeObserver === 'undefined') return;
+    this._ro = new ResizeObserver(entries => {
+      const width = entries[0]?.contentRect?.width;
+      if (width === undefined) return;
+      const wasHorizontal = this._isHorizontal;
+      this._isHorizontal = width > 520;
+      if (wasHorizontal !== this._isHorizontal) this._applyLayout();
+    });
+    this._ro.observe(this.container);
   }
 
   init() {
     renderLoading(this.container);
+    this._setupLayoutObserver();
     this._load();
   }
 
@@ -143,6 +171,7 @@ export class Widget {
       onSubmit: () => this._submitMultipleVotes(),
       themeOverride: this.opts.theme,
       vars: this.opts.vars,
+      layoutClass: this._getLayoutClass(),
     });
   }
 
@@ -154,6 +183,7 @@ export class Widget {
 
   destroy() {
     this._destroyed = true;
+    if (this._ro) { this._ro.disconnect(); this._ro = null; }
     this.container.innerHTML = '';
   }
 }

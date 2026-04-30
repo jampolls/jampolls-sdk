@@ -66,7 +66,7 @@ export function renderPoll(container, data, state) {
   const { poll_data, embed_settings } = data;
   const { question, options, votes_count, created_at, image } = poll_data;
   const { show_results, show_branding } = embed_settings;
-  const { votedOptionIds, selectedOptionIds, submitting, feedback, onOptionClick, onSubmit, themeOverride, vars } = state;
+  const { votedOptionIds, selectedOptionIds, submitting, feedback, onOptionClick, onSubmit, themeOverride, vars, layoutClass } = state;
   const selectedIds = new Set(votedOptionIds || []);
   const pendingIds = new Set(selectedOptionIds || votedOptionIds || []);
   const allowMultipleVotes = Boolean(poll_data.allow_multiple_votes);
@@ -99,6 +99,11 @@ export function renderPoll(container, data, state) {
     return placementA - placementB;
   });
 
+  const showingResults = show_results && votes_count > 0;
+  const maxVotes = showingResults
+    ? Math.max(...sortedOptions.map(o => Number(o.votes_count) || 0))
+    : 0;
+
   const optionsHtml = sortedOptions
     .map(opt => {
       const optionId = Number(opt.id);
@@ -106,9 +111,10 @@ export function renderPoll(container, data, state) {
       const optionImage = imageUrl(opt.image);
       const disabled = submitting || (!canChangeVote && hasSubmittedVotes);
       const pct =
-        show_results && votes_count > 0
+        showingResults
           ? Math.round((opt.votes_count / votes_count) * 100)
           : null;
+      const isLeading = showingResults && maxVotes > 0 && Number(opt.votes_count) === maxVotes;
 
       return (
         `<button class="jp-option${voted ? ' jp-voted' : ''}"` +
@@ -119,7 +125,7 @@ export function renderPoll(container, data, state) {
         (allowMultipleVotes ? `<span class="jp-choice-indicator" aria-hidden="true"></span>` : '') +
         (optionImage ? `<img class="jp-option-image" src="${esc(optionImage)}" alt="">` : '') +
         `<span class="jp-option-text">${esc(opt.text)}</span>` +
-        (pct !== null ? `<span class="jp-pct">${pct}%</span>` : '') +
+        (pct !== null ? `<span class="jp-pct">${isLeading ? '🔥 ' : ''}${pct}%</span>` : '') +
         '</button>'
       );
     })
@@ -136,7 +142,9 @@ export function renderPoll(container, data, state) {
     : '';
 
   container.innerHTML =
-    `<div class="jp-widget jp-theme-${esc(themeClass)}" role="region" aria-label="Poll">` +
+    `<div class="jp-widget jp-theme-${esc(themeClass)}${layoutClass ? ' ' + layoutClass : ''}" role="region" aria-label="Poll">` +
+    '<div class="jp-body">' +
+    '<div class="jp-col-left">' +
     '<div class="jp-header">' +
     `<p class="jp-question">${esc(question)}</p>` +
     '<div class="jp-meta-row">' +
@@ -145,10 +153,14 @@ export function renderPoll(container, data, state) {
     '</div>' +
     badgesHtml +
     '</div>' +
-    feedbackHtml +
     pollImageHtml +
+    '</div>' +
+    '<div class="jp-col-right">' +
+    feedbackHtml +
     `<div class="jp-options${allowMultipleVotes ? ' jp-options-multiple' : ''}" role="group" aria-label="Poll options">${optionsHtml}</div>` +
     submit +
+    '</div>' +
+    '</div>' +
     footer +
     '</div>';
 

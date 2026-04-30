@@ -1,7 +1,7 @@
 /* Jampolls Widget — all selectors scoped to .jp-widget */
 
 .jp-widget {
-  --jp-primary: #f97316;
+  --jp-primary: #ff9724;
   --jp-bg: #ffffff;
   --jp-surface: #f8fafc;
   --jp-text: #0f172a;
@@ -32,21 +32,25 @@
 }
 
 /* ── Themes ── */
+
+/* Neutral dark — matches the Jampolls app's own dark aesthetic */
 .jp-widget.jp-theme-dark {
-  --jp-bg: #1e293b;
-  --jp-surface: #0f172a;
-  --jp-text: #f1f5f9;
-  --jp-text-muted: #94a3b8;
-  --jp-border: #334155;
+  --jp-bg: #161616;
+  --jp-surface: #1f1f1f;
+  --jp-text: #f5f5f5;
+  --jp-text-muted: #999999;
+  --jp-border: #2a2a2a;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
 }
 
+/* Warm branded light — distinctive Jampolls editorial feel */
 .jp-widget.jp-theme-jampolls {
   --jp-bg: #fff7ed;
   --jp-surface: #ffedd5;
   --jp-text: #431407;
   --jp-text-muted: #9a3412;
   --jp-border: #fed7aa;
-  --jp-primary: #ea580c;
+  --jp-primary: #ff9724;
 }
 
 /* ── Layout ── */
@@ -84,7 +88,7 @@
 .jp-badge {
   padding: 3px 7px;
   border-radius: 999px;
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(255, 151, 36, 0.12);
   color: var(--jp-primary);
   font-size: 11px;
   font-weight: 600;
@@ -113,7 +117,8 @@
   border: 1px solid #fecdca;
 }
 
-.jp-theme-dark .jp-feedback-error {
+.jp-theme-dark .jp-feedback-error,
+.jp-theme-jampolls .jp-feedback-error {
   color: #fecaca;
   background: rgba(127, 29, 29, 0.35);
   border-color: rgba(248, 113, 113, 0.35);
@@ -201,13 +206,14 @@
   position: absolute;
   inset: 0;
   width: var(--pct, 0%);
-  background: rgba(249, 115, 22, 0.1);
+  background: rgba(255, 151, 36, 0.1);
   transition: width 0.45s ease;
   pointer-events: none;
 }
 
-.jp-theme-dark .jp-bar {
-  background: rgba(249, 115, 22, 0.15);
+.jp-theme-dark .jp-bar,
+.jp-theme-jampolls .jp-bar {
+  background: rgba(255, 151, 36, 0.15);
 }
 
 .jp-option-text {
@@ -325,6 +331,35 @@
 
 .jp-footer a:hover {
   color: var(--jp-primary);
+}
+
+/* ── Horizontal layout ── */
+.jp-widget.jp-layout-horizontal {
+  max-width: 720px;
+}
+
+.jp-widget.jp-layout-horizontal .jp-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.jp-widget.jp-layout-horizontal .jp-col-left {
+  border-right: 1px solid var(--jp-border);
+  padding-bottom: 14px;
+}
+
+.jp-widget.jp-layout-horizontal .jp-col-right {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.jp-widget.jp-layout-horizontal .jp-options {
+  flex: 1;
+}
+
+.jp-widget.jp-layout-horizontal .jp-poll-image {
+  max-height: 220px;
 }
 
 /* ── Accessibility ── */
