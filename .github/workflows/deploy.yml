@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Build SDK
-        run: npm run build
+        run: npm run build:prod
 
       - name: Extract version from tag
         id: version
@@ -54,19 +54,9 @@ jobs:
             --cache-control "public, max-age=31536000, immutable" \
             --content-type "application/javascript"
 
-          aws s3 cp dist/jampolls.js \
-            s3://jampolls-cdn/v${VERSION}/jampolls.js \
-            --cache-control "public, max-age=31536000, immutable" \
-            --content-type "application/javascript"
-
           # Latest path — overwritten on every release, short cache
           aws s3 cp dist/jampolls.min.js \
             s3://jampolls-cdn/latest/jampolls.min.js \
-            --cache-control "public, max-age=300, stale-while-revalidate=86400" \
-            --content-type "application/javascript"
-
-          aws s3 cp dist/jampolls.js \
-            s3://jampolls-cdn/latest/jampolls.js \
             --cache-control "public, max-age=300, stale-while-revalidate=86400" \
             --content-type "application/javascript"
 
