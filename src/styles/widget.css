@@ -1,0 +1,204 @@
+/* Jampolls Widget — all selectors scoped to .jp-widget */
+
+.jp-widget {
+  --jp-primary: #f97316;
+  --jp-bg: #ffffff;
+  --jp-surface: #f8fafc;
+  --jp-text: #0f172a;
+  --jp-text-muted: #64748b;
+  --jp-border: #e2e8f0;
+  --jp-radius: 12px;
+  --jp-option-radius: 8px;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--jp-text);
+  background: var(--jp-bg);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  max-width: 480px;
+  width: 100%;
+}
+
+.jp-widget *,
+.jp-widget *::before,
+.jp-widget *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Themes ── */
+.jp-widget.jp-theme-dark {
+  --jp-bg: #1e293b;
+  --jp-surface: #0f172a;
+  --jp-text: #f1f5f9;
+  --jp-text-muted: #94a3b8;
+  --jp-border: #334155;
+}
+
+.jp-widget.jp-theme-jampolls {
+  --jp-bg: #fff7ed;
+  --jp-surface: #ffedd5;
+  --jp-text: #431407;
+  --jp-text-muted: #9a3412;
+  --jp-border: #fed7aa;
+  --jp-primary: #ea580c;
+}
+
+/* ── Layout ── */
+.jp-header {
+  padding: 16px 16px 10px;
+}
+
+.jp-question {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--jp-text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.jp-meta {
+  font-size: 12px;
+  color: var(--jp-text-muted);
+}
+
+.jp-options {
+  padding: 4px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Option button ── */
+.jp-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--jp-surface);
+  border: 1.5px solid var(--jp-border);
+  border-radius: var(--jp-option-radius);
+  cursor: pointer;
+  text-align: left;
+  color: var(--jp-text);
+  font-size: 14px;
+  font-family: inherit;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.jp-option:hover:not(:disabled) {
+  border-color: var(--jp-primary);
+  background: var(--jp-bg);
+}
+
+.jp-option:focus-visible {
+  outline: 2px solid var(--jp-primary);
+  outline-offset: 2px;
+}
+
+.jp-option:disabled {
+  cursor: default;
+}
+
+.jp-option.jp-voted {
+  border-color: var(--jp-primary);
+}
+
+/* Results bar (shown after voting) */
+.jp-bar {
+  position: absolute;
+  inset: 0;
+  width: var(--pct, 0%);
+  background: rgba(249, 115, 22, 0.1);
+  transition: width 0.45s ease;
+  pointer-events: none;
+}
+
+.jp-theme-dark .jp-bar {
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.jp-option-text {
+  position: relative;
+  flex: 1;
+  font-weight: 500;
+}
+
+.jp-option.jp-voted .jp-option-text {
+  color: var(--jp-primary);
+  font-weight: 600;
+}
+
+.jp-pct {
+  position: relative;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--jp-primary);
+  min-width: 38px;
+  text-align: right;
+}
+
+/* ── Loading ── */
+.jp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.jp-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--jp-border);
+  border-top-color: var(--jp-primary);
+  border-radius: 50%;
+  animation: jp-spin 0.7s linear infinite;
+}
+
+@keyframes jp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error ── */
+.jp-error {
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.jp-error-msg {
+  color: var(--jp-text-muted);
+  font-size: 13px;
+}
+
+/* ── Footer / branding ── */
+.jp-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--jp-border);
+  text-align: center;
+}
+
+.jp-footer a {
+  font-size: 11px;
+  color: var(--jp-text-muted);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+
+.jp-footer a:hover {
+  color: var(--jp-primary);
+}
+
+/* ── Accessibility ── */
+@media (prefers-reduced-motion: reduce) {
+  .jp-spinner { animation: none; }
+  .jp-option,
+  .jp-bar { transition: none; }
+}
