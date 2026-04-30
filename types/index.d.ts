@@ -11,8 +11,6 @@ export interface WidgetOptions {
    * vars: { '--jp-primary': '#7c3aed', '--jp-radius': '4px', 'max-width': '100%' }
    */
   vars?: Record<string, string>;
-  /** Override the API base URL. Defaults to https://hub.jampolls.com */
-  apiUrl?: string;
   /** Called after poll data loads successfully. */
   onLoad?: (data: PollData) => void;
   /** Called after a vote is submitted or removed. */

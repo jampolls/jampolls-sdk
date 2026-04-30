@@ -6,7 +6,7 @@ export class Widget {
     this.embedKey = embedKey;
     this.container = container;
     this.opts = opts || {};
-    this.api = new JampollsApi(this.opts.apiUrl);
+    this.api = new JampollsApi();
     this.data = null;
     this.votedOptionId = null;
     this.submitting = false;

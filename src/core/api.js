@@ -1,11 +1,11 @@
 import { getVoterId } from './voter.js';
 
-export const DEFAULT_BASE_URL = 'https://hub.jampolls.com';
+const BASE_URL = 'https://hub.jampolls.com';
 const SDK_VERSION = '1.0.0';
 
 export class JampollsApi {
-  constructor(baseUrl) {
-    this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, '');
+  constructor() {
+    this.baseUrl = BASE_URL;
   }
 
   async fetchPoll(embedKey) {

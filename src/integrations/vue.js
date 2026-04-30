@@ -15,7 +15,6 @@ export const JampollsWidget = defineComponent({
   props: {
     embedKey: { type: String, required: true },
     theme: { type: String, default: 'auto' },
-    apiUrl: { type: String, default: undefined },
   },
 
   emits: ['load', 'vote', 'error'],
@@ -28,7 +27,6 @@ export const JampollsWidget = defineComponent({
       if (!containerRef.value || !props.embedKey) return;
       widget = JamPolls.embed(props.embedKey, containerRef.value, {
         theme: props.theme,
-        apiUrl: props.apiUrl,
         onLoad: data => emit('load', data),
         onVote: event => emit('vote', event),
         onError: err => emit('error', err),
