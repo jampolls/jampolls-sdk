@@ -193,6 +193,32 @@ import JamPolls, { WidgetOptions, PollData, VoteEvent } from '@jampolls/sdk';
 
 ---
 
+## Real-time updates (SSE)
+
+Once a widget loads, it connects to a Server-Sent Events stream for the embed. Vote counts and results update automatically in the background — no page refresh needed.
+
+- **Initial snapshot** — on connect, the stream immediately delivers the current poll state
+- **Live updates** — every vote from any source pushes a `poll.update` event; the widget re-renders in place
+- **Auto-reconnect** — if the stream drops, the SDK reconnects using exponential backoff (1 s → 60 s, ±20% jitter)
+- **Idle tab** — the stream disconnects when the tab is hidden and reconnects when the visitor returns, to avoid unnecessary server load
+
+---
+
+## Offline cache and stale-data indicator
+
+The SDK caches poll state in `localStorage` (key: `jampolls_embed_{embedKey}`) after every successful fetch or live update.
+
+**When the server is unreachable on load**, the SDK renders from cache immediately so visitors still see poll content. A small muted "Last synced X ago" notice appears at the bottom of the widget to indicate the data may be slightly out of date. It disappears as soon as a fresh update arrives.
+
+```
+localStorage key: jampolls_embed_<embedKey>
+value shape:      { data: {...}, lastFetchedAt: "<ISO8601 timestamp>" }
+```
+
+The cache is stored per embed key and is never shared across different embeds. Visitors in private/incognito mode get an ephemeral (in-memory) experience with no cache fallback.
+
+---
+
 ## Browser support
 
 Chrome 60+, Firefox 55+, Safari 12+, Edge 79+. No IE11.

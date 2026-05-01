@@ -1,5 +1,8 @@
 import { JampollsApi } from './api.js';
+import { EmbedSSE } from './sse.js';
 import { renderLoading, renderError, renderPoll } from './renderer.js';
+
+const CACHE_PREFIX = 'jampolls_embed_';
 
 export class Widget {
   constructor(embedKey, container, opts) {
@@ -12,9 +15,81 @@ export class Widget {
     this.pendingOptionIds = new Set();
     this.submitting = false;
     this.feedback = null;
+    this.isStale = false;
+    this.lastFetchedAt = null;
     this._destroyed = false;
     this._isHorizontal = false;
     this._ro = null;
+    this._sse = null;
+  }
+
+  _cacheKey() { return `${CACHE_PREFIX}${this.embedKey}`; }
+
+  _saveCache() {
+    if (!this.data) return;
+    try {
+      localStorage.setItem(this._cacheKey(), JSON.stringify({
+        data: this.data,
+        lastFetchedAt: new Date().toISOString(),
+      }));
+    } catch {}
+  }
+
+  _loadCache() {
+    try {
+      const raw = localStorage.getItem(this._cacheKey());
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  _applySsePayload(payload) {
+    if (!this.data || payload.tool !== 'poll') return;
+    const pd = this.data.poll_data || {};
+    const updatedOptions = (pd.options || []).map(opt => {
+      const hit = (payload.options || []).find(o => Number(o.id) === Number(opt.id));
+      return hit ? { ...opt, votes_count: hit.votes_count, percentage: hit.percentage } : opt;
+    });
+    this.data = {
+      ...this.data,
+      poll_data: {
+        ...pd,
+        question: payload.question ?? pd.question,
+        votes_count: payload.total_votes ?? pd.votes_count,
+        is_active: payload.status === 'active',
+        allow_multiple_votes: payload.settings?.allow_multiple_votes ?? pd.allow_multiple_votes,
+        can_change_vote: payload.settings?.can_change_vote ?? pd.can_change_vote,
+        allow_anonymous: payload.settings?.allow_anonymous ?? pd.allow_anonymous,
+        options: updatedOptions,
+      },
+      embed_settings: {
+        ...this.data.embed_settings,
+        show_results: payload.settings?.show_results ?? this.data.embed_settings?.show_results,
+      },
+    };
+    this.isStale = false;
+    this.lastFetchedAt = null;
+    this._saveCache();
+  }
+
+  _startSSE() {
+    if (this._sse || this._destroyed) return;
+    const streamUrl = `${this.api.baseUrl}/api/v1/widgets/${this.embedKey}/stream/`;
+    this._sse = new EmbedSSE(streamUrl, {
+      onData: payload => {
+        if (this._destroyed) return;
+        this._applySsePayload(payload);
+        if (!this._destroyed) this._render();
+      },
+      onStale: () => {
+        if (this._destroyed || !this.isStale) return;
+        const cached = this._loadCache();
+        if (cached) {
+          this.lastFetchedAt = cached.lastFetchedAt;
+          this._render();
+        }
+      },
+    });
+    this._sse.start();
   }
 
   _getLayoutClass() {
@@ -52,13 +127,27 @@ export class Widget {
     try {
       this.data = await this.api.fetchPoll(this.embedKey);
       if (this._destroyed) return;
+      this.isStale = false;
+      this.lastFetchedAt = null;
       this.feedback = null;
+      this._saveCache();
       this._render();
+      this._startSSE();
       if (this.opts.onLoad) this.opts.onLoad(this.data);
     } catch (err) {
       if (this._destroyed) return;
-      renderError(this.container, 'Could not load poll. Please try again.');
-      if (this.opts.onError) this.opts.onError(err);
+      const cached = this._loadCache();
+      if (cached?.data) {
+        this.data = cached.data;
+        this.isStale = true;
+        this.lastFetchedAt = cached.lastFetchedAt;
+        this._render();
+        this._startSSE();
+        if (this.opts.onLoad) this.opts.onLoad(this.data);
+      } else {
+        renderError(this.container, 'Could not load poll. Please try again.');
+        if (this.opts.onError) this.opts.onError(err);
+      }
     }
   }
 
@@ -102,8 +191,10 @@ export class Widget {
         this.votedOptionIds = removing ? new Set() : new Set([optionId]);
       }
 
-      // Re-fetch for up-to-date counts
       this.data = await this.api.fetchPoll(this.embedKey);
+      this.isStale = false;
+      this.lastFetchedAt = null;
+      this._saveCache();
       this.feedback = null;
 
       if (this.opts.onVote) this.opts.onVote({ optionId, removed: removing });
@@ -140,6 +231,9 @@ export class Widget {
       this.votedOptionIds = selectedIds;
       this.pendingOptionIds = new Set(selectedIds);
       this.data = await this.api.fetchPoll(this.embedKey);
+      this.isStale = false;
+      this.lastFetchedAt = null;
+      this._saveCache();
       this.feedback = null;
 
       if (this.opts.onVote) {
@@ -172,6 +266,8 @@ export class Widget {
       themeOverride: this.opts.theme,
       vars: this.opts.vars,
       layoutClass: this._getLayoutClass(),
+      isStale: this.isStale,
+      lastFetchedAt: this.lastFetchedAt,
     });
   }
 
@@ -184,6 +280,7 @@ export class Widget {
   destroy() {
     this._destroyed = true;
     if (this._ro) { this._ro.disconnect(); this._ro = null; }
+    if (this._sse) { this._sse.destroy(); this._sse = null; }
     this.container.innerHTML = '';
   }
 }

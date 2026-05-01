@@ -66,7 +66,7 @@ export function renderPoll(container, data, state) {
   const { poll_data, embed_settings } = data;
   const { question, options, votes_count, created_at, image } = poll_data;
   const { show_results, show_branding } = embed_settings;
-  const { votedOptionIds, selectedOptionIds, submitting, feedback, onOptionClick, onSubmit, themeOverride, vars, layoutClass } = state;
+  const { votedOptionIds, selectedOptionIds, submitting, feedback, onOptionClick, onSubmit, themeOverride, vars, layoutClass, isStale, lastFetchedAt } = state;
   const selectedIds = new Set(votedOptionIds || []);
   const pendingIds = new Set(selectedOptionIds || votedOptionIds || []);
   const allowMultipleVotes = Boolean(poll_data.allow_multiple_votes);
@@ -131,6 +131,9 @@ export function renderPoll(container, data, state) {
     })
     .join('');
 
+  const staleNotice = isStale && lastFetchedAt
+    ? `<div class="jp-stale-notice" role="status">Last synced ${formatRelativeTime(lastFetchedAt)}</div>`
+    : '';
   const footer = show_branding
     ? `<div class="jp-footer"><a href="https://jampolls.com" target="_blank" rel="noopener noreferrer"><span>Powered by</span>${BRAND_LOGO_SVG}</a></div>`
     : '';
@@ -161,6 +164,7 @@ export function renderPoll(container, data, state) {
     submit +
     '</div>' +
     '</div>' +
+    staleNotice +
     footer +
     '</div>';
 

@@ -305,6 +305,15 @@
   font-size: 13px;
 }
 
+/* ── Stale cache notice ── */
+.jp-stale-notice {
+  text-align: center;
+  font-size: 11px;
+  color: var(--jp-text-muted);
+  opacity: 0.7;
+  padding: 6px 16px 0;
+}
+
 /* ── Footer / branding ── */
 .jp-footer {
   padding: 8px 16px;
