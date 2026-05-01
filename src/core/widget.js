@@ -191,10 +191,14 @@ export class Widget {
         this.votedOptionIds = removing ? new Set() : new Set([optionId]);
       }
 
-      this.data = await this.api.fetchPoll(this.embedKey);
-      this.isStale = false;
-      this.lastFetchedAt = null;
-      this._saveCache();
+      // SSE will push updated counts; only re-fetch via REST when SSE is not connected
+      // (avoids inflating the view counter on every vote).
+      if (!this._sse?.connected) {
+        this.data = await this.api.fetchPoll(this.embedKey);
+        this.isStale = false;
+        this.lastFetchedAt = null;
+        this._saveCache();
+      }
       this.feedback = null;
 
       if (this.opts.onVote) this.opts.onVote({ optionId, removed: removing });
@@ -230,10 +234,12 @@ export class Widget {
 
       this.votedOptionIds = selectedIds;
       this.pendingOptionIds = new Set(selectedIds);
-      this.data = await this.api.fetchPoll(this.embedKey);
-      this.isStale = false;
-      this.lastFetchedAt = null;
-      this._saveCache();
+      if (!this._sse?.connected) {
+        this.data = await this.api.fetchPoll(this.embedKey);
+        this.isStale = false;
+        this.lastFetchedAt = null;
+        this._saveCache();
+      }
       this.feedback = null;
 
       if (this.opts.onVote) {

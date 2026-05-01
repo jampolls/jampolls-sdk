@@ -65,6 +65,10 @@ export class EmbedSSE {
     this._timer = setTimeout(() => { if (!this._destroyed) this._open(); }, delay);
   }
 
+  get connected() {
+    return this._es !== null && this._es.readyState === 1; // EventSource.OPEN
+  }
+
   _json(raw) {
     try { return JSON.parse(raw); } catch { return null; }
   }
