@@ -192,3 +192,482 @@ export function renderPoll(container, data, state) {
     });
   }
 }
+
+const RATING_EMOJIS = ['😞', '😐', '🙂', '😀', '😍'];
+
+function formatAverage(avg) {
+  if (avg == null) return null;
+  const n = Number(avg);
+  return Number.isFinite(n) ? n.toFixed(1) : null;
+}
+
+export function renderRating(container, data, state) {
+  const { rating_data, embed_settings } = data;
+  const {
+    submitted,
+    selectedRating,
+    comment,
+    feedback,
+    submitting,
+    onSelectRating,
+    onCommentChange,
+    onSubmit,
+    themeOverride,
+    vars,
+  } = state;
+
+  const themeClass = resolveTheme(themeOverride || embed_settings.theme);
+  const { show_branding } = embed_settings;
+  const {
+    title,
+    description,
+    rating_type: ratingType,
+    max_rating: maxRating,
+    min_label: minLabel,
+    max_label: maxLabel,
+    show_average: showAverage,
+    require_comments: requireComments,
+    average_rating: averageRating,
+    response_count: responseCount,
+  } = rating_data;
+
+  const showAvg =
+    showAverage &&
+    (submitted || responseCount > 0) &&
+    averageRating != null;
+  const avgFormatted = formatAverage(averageRating);
+  const avgHtml = showAvg
+    ? `<div class="jp-avg-display">${avgFormatted} avg · ${Number(responseCount).toLocaleString()} rating${responseCount !== 1 ? 's' : ''}</div>`
+    : '';
+
+  const footer = show_branding
+    ? `<div class="jp-footer"><a href="https://jampolls.com" target="_blank" rel="noopener noreferrer"><span>Powered by</span>${BRAND_LOGO_SVG}</a></div>`
+    : '';
+
+  const feedbackHtml = feedback?.message
+    ? `<div class="jp-feedback jp-feedback-${esc(feedback.type || 'error')}" role="alert">${esc(feedback.message)}</div>`
+    : '';
+
+  let bodyContent = '';
+
+  if (submitted) {
+    bodyContent =
+      `<div class="jp-rating-submitted"><p>Thanks for rating!</p>${avgHtml}</div>`;
+  } else {
+    if (ratingType === 'numbers') {
+      const buttons = Array.from({ length: maxRating }, (_, i) => {
+        const val = i + 1;
+        const selected = selectedRating === val;
+        return `<button type="button" class="jp-number-btn${selected ? ' jp-selected' : ''}" data-value="${val}" aria-pressed="${selected}">${val}</button>`;
+      }).join('');
+      bodyContent = `<div class="jp-numbers" role="group" aria-label="Rate from 1 to ${maxRating}">${buttons}</div>`;
+    } else if (ratingType === 'emojis') {
+      const buttons = RATING_EMOJIS.map((emoji, i) => {
+        const val = i + 1;
+        const selected = selectedRating === val;
+        return `<button type="button" class="jp-emoji-btn${selected ? ' jp-selected' : ''}" data-value="${val}" aria-label="Rate ${val} of 5">${emoji}</button>`;
+      }).join('');
+      bodyContent = `<div class="jp-emojis" role="group" aria-label="Rate with emoji">${buttons}</div>`;
+    } else {
+      const stars = Array.from({ length: maxRating }, (_, i) => {
+        const val = i + 1;
+        const filled = selectedRating != null && val <= selectedRating;
+        return `<button type="button" class="jp-star${filled ? ' jp-star-filled' : ''}" data-value="${val}" aria-label="Rate ${val} of ${maxRating}">★</button>`;
+      }).join('');
+      bodyContent = `<div class="jp-stars" role="group" aria-label="Rate with stars" data-selected="${selectedRating ?? ''}">${stars}</div>`;
+    }
+
+    const labelsHtml =
+      minLabel || maxLabel
+        ? `<div class="jp-rating-labels"><span>${esc(minLabel || '')}</span><span>${esc(maxLabel || '')}</span></div>`
+        : '';
+
+    const showComment = requireComments || selectedRating != null;
+    const commentHtml = showComment
+      ? `<textarea class="jp-rating-comment" placeholder="${requireComments ? 'Comment (required)' : 'Add a comment (optional)'}" rows="3"${requireComments ? ' required' : ''}>${esc(comment)}</textarea>`
+      : '';
+
+    const canSubmit =
+      selectedRating != null &&
+      (!requireComments || comment.trim().length > 0);
+
+    const submitHtml =
+      `<div class="jp-actions"><button class="jp-submit jp-rating-submit" type="button"${submitting || !canSubmit ? ' disabled' : ''}>${submitting ? 'Submitting...' : 'Submit rating'}</button></div>`;
+
+    bodyContent += labelsHtml + commentHtml + submitHtml;
+  }
+
+  container.innerHTML =
+    `<div class="jp-widget jp-rating jp-theme-${esc(themeClass)}" role="region" aria-label="Rating">` +
+    '<div class="jp-body">' +
+    '<div class="jp-header">' +
+    `<p class="jp-question">${esc(title)}</p>` +
+    (description ? `<p class="jp-meta">${esc(description)}</p>` : '') +
+    (!submitted ? avgHtml : '') +
+    '</div>' +
+    feedbackHtml +
+    bodyContent +
+    '</div>' +
+    footer +
+    '</div>';
+
+  if (vars && typeof vars === 'object') {
+    const el = container.querySelector('.jp-widget');
+    if (el) {
+      Object.entries(vars).forEach(([prop, val]) => {
+        el.style.setProperty(prop, val);
+      });
+    }
+  }
+
+  if (!submitted) {
+    container.querySelectorAll('[data-value]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = Number(btn.dataset.value);
+        if (!submitting && Number.isFinite(val) && onSelectRating) onSelectRating(val);
+      });
+    });
+
+    const starsEl = container.querySelector('.jp-stars');
+    if (starsEl) {
+      starsEl.querySelectorAll('.jp-star').forEach(star => {
+        star.addEventListener('mouseenter', () => {
+          const hoverVal = Number(star.dataset.value);
+          starsEl.querySelectorAll('.jp-star').forEach(s => {
+            const v = Number(s.dataset.value);
+            s.classList.toggle('jp-star-filled', v <= hoverVal);
+          });
+        });
+      });
+      starsEl.addEventListener('mouseleave', () => {
+        const sel = Number(starsEl.dataset.selected);
+        starsEl.querySelectorAll('.jp-star').forEach(s => {
+          const v = Number(s.dataset.value);
+          s.classList.toggle('jp-star-filled', Number.isFinite(sel) && v <= sel);
+        });
+      });
+    }
+
+    const commentEl = container.querySelector('.jp-rating-comment');
+    if (commentEl) {
+      commentEl.addEventListener('input', e => {
+        if (onCommentChange) onCommentChange(e.target.value);
+      });
+    }
+
+    const submitBtn = container.querySelector('.jp-rating-submit');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        if (!submitting && onSubmit) onSubmit();
+      });
+    }
+  }
+}
+
+export function flattenSurveyQuestions(surveyData) {
+  if (!surveyData) return [];
+  if (surveyData.display_mode === 'sections' && surveyData.sections?.length) {
+    return surveyData.sections.flatMap(section =>
+      [...(section.questions || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+    );
+  }
+  return [...(surveyData.questions || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function renderSurveyQuestionInput(question, value, error, onSetAnswer) {
+  const qid = Number(question.id);
+  const requiredMark = question.required ? '<span class="jp-survey-required" aria-hidden="true">*</span>' : '';
+  const errorHtml = error ? `<div class="jp-survey-error" role="alert">${esc(error)}</div>` : '';
+
+  if (['text', 'email', 'phone', 'url'].includes(question.question_type)) {
+    const inputType = question.question_type === 'text' ? 'text' : question.question_type;
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<input class="jp-survey-text-input" type="${esc(inputType)}" value="${esc(value ?? '')}" data-qid="${qid}">` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (question.question_type === 'date') {
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<input class="jp-survey-text-input" type="date" value="${esc(value ?? '')}" data-qid="${qid}">` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (question.question_type === 'time') {
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<input class="jp-survey-text-input" type="time" value="${esc(value ?? '')}" data-qid="${qid}">` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (question.question_type === 'dropdown') {
+    const options = [...(question.options || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const optsHtml = options.map(opt =>
+      `<option value="${Number(opt.id)}"${Number(value) === Number(opt.id) ? ' selected' : ''}>${esc(opt.text)}</option>`
+    ).join('');
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<select class="jp-survey-dropdown" data-qid="${qid}"><option value="">Select…</option>${optsHtml}</select>` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (question.question_type === 'multiple_choice') {
+    const selected = new Set(Array.isArray(value) ? value.map(Number) : []);
+    const options = [...(question.options || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const optsHtml = options.map(opt => {
+      const oid = Number(opt.id);
+      const checked = selected.has(oid);
+      return (
+        `<button type="button" class="jp-option jp-survey-checkbox${checked ? ' jp-voted' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${checked}">` +
+        `<span class="jp-choice-indicator" aria-hidden="true"></span>` +
+        `<span class="jp-option-text">${esc(opt.text)}</span>` +
+        '</button>'
+      );
+    }).join('');
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<div class="jp-survey-options jp-options-multiple">${optsHtml}</div>` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (['single_choice'].includes(question.question_type)) {
+    const options = [...(question.options || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const optsHtml = options.map(opt => {
+      const oid = Number(opt.id);
+      const selected = Number(value) === oid;
+      return (
+        `<button type="button" class="jp-option${selected ? ' jp-voted' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${selected}">` +
+        `<span class="jp-option-text">${esc(opt.text)}</span>` +
+        '</button>'
+      );
+    }).join('');
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<div class="jp-survey-options">${optsHtml}</div>` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  if (['likert', 'rating'].includes(question.question_type)) {
+    const minVal = question.min_val ?? 1;
+    const maxVal = question.max_val ?? 5;
+    const rType = question.rating_type || 'star';
+    const emojis = question.emojis || RATING_EMOJIS;
+
+    if (rType === 'emoji') {
+      const btns = emojis.map((emoji, i) => {
+        const val = minVal + i;
+        const selected = Number(value) === val;
+        return `<button type="button" class="jp-emoji-btn${selected ? ' jp-selected' : ''}" data-qid="${qid}" data-value="${val}">${emoji}</button>`;
+      }).join('');
+      return (
+        `<div class="jp-survey-question" data-qid="${qid}">` +
+        `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+        `<div class="jp-emojis">${btns}</div>` +
+        errorHtml +
+        '</div>'
+      );
+    }
+
+    if (rType === 'number') {
+      const btns = Array.from({ length: maxVal - minVal + 1 }, (_, i) => {
+        const val = minVal + i;
+        const selected = Number(value) === val;
+        return `<button type="button" class="jp-number-btn${selected ? ' jp-selected' : ''}" data-qid="${qid}" data-value="${val}">${val}</button>`;
+      }).join('');
+      return (
+        `<div class="jp-survey-question" data-qid="${qid}">` +
+        `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+        `<div class="jp-numbers">${btns}</div>` +
+        errorHtml +
+        '</div>'
+      );
+    }
+
+    const stars = Array.from({ length: maxVal - minVal + 1 }, (_, i) => {
+      const val = minVal + i;
+      const filled = value != null && val <= Number(value);
+      return `<button type="button" class="jp-star${filled ? ' jp-star-filled' : ''}" data-qid="${qid}" data-value="${val}">★</button>`;
+    }).join('');
+    return (
+      `<div class="jp-survey-question" data-qid="${qid}">` +
+      `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      `<div class="jp-stars">${stars}</div>` +
+      errorHtml +
+      '</div>'
+    );
+  }
+
+  return (
+    `<div class="jp-survey-question" data-qid="${qid}">` +
+    `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+    `<p class="jp-meta">This question type is not supported in embeds yet.</p>` +
+    errorHtml +
+    '</div>'
+  );
+}
+
+export function renderSurvey(container, data, state) {
+  const { survey_data, embed_settings } = data;
+  const {
+    phase,
+    currentStep,
+    answers,
+    validationErrors,
+    feedback,
+    submitting,
+    questions,
+    onSetAnswer,
+    onNext,
+    onBack,
+    onSubmit,
+    canAdvance,
+    themeOverride,
+    vars,
+  } = state;
+
+  const themeClass = resolveTheme(themeOverride || embed_settings.theme);
+  const { show_branding } = embed_settings;
+  const displayMode = survey_data.display_mode || 'all_questions';
+  const isOneByOne = displayMode === 'one_by_one';
+
+  const footer = show_branding
+    ? `<div class="jp-footer"><a href="https://jampolls.com" target="_blank" rel="noopener noreferrer"><span>Powered by</span>${BRAND_LOGO_SVG}</a></div>`
+    : '';
+
+  const feedbackHtml = feedback?.message
+    ? `<div class="jp-feedback jp-feedback-${esc(feedback.type || 'error')}" role="alert">${esc(feedback.message)}</div>`
+    : '';
+
+  if (phase === 'outro') {
+    const outroImage = imageUrl(survey_data.outro_image);
+    container.innerHTML =
+      `<div class="jp-widget jp-survey jp-theme-${esc(themeClass)}" role="region" aria-label="Survey complete">` +
+      '<div class="jp-survey-outro">' +
+      (outroImage ? `<img class="jp-survey-outro-image" src="${esc(outroImage)}" alt="">` : '') +
+      `<h3 class="jp-question">${esc(survey_data.outro_title || 'Thank you!')}</h3>` +
+      (survey_data.outro_description ? `<p class="jp-meta">${esc(survey_data.outro_description)}</p>` : '') +
+      '</div>' +
+      footer +
+      '</div>';
+    return;
+  }
+
+  const visibleQuestions = isOneByOne
+    ? (questions[currentStep] ? [questions[currentStep]] : [])
+    : questions;
+
+  const progressHtml = isOneByOne && questions.length > 1
+    ? `<div class="jp-survey-progress"><div class="jp-survey-progress-bar" style="--pct:${Math.round(((currentStep + 1) / questions.length) * 100)}%"></div><span class="jp-survey-step">Step ${currentStep + 1} of ${questions.length}</span></div>`
+    : '';
+
+  const questionsHtml = visibleQuestions.map(q => {
+    const val = answers.get(Number(q.id));
+    const err = validationErrors.get(Number(q.id));
+    return renderSurveyQuestionInput(q, val, err, onSetAnswer);
+  }).join('');
+
+  const isLastStep = !isOneByOne || currentStep >= questions.length - 1;
+  const navHtml = isOneByOne
+    ? `<div class="jp-survey-nav">` +
+      `<button type="button" class="jp-survey-back" ${currentStep === 0 ? 'disabled' : ''}>Back</button>` +
+      (isLastStep
+        ? `<button type="button" class="jp-submit jp-survey-submit"${submitting || !canAdvance ? ' disabled' : ''}>${submitting ? 'Submitting...' : 'Submit'}</button>`
+        : `<button type="button" class="jp-submit jp-survey-next"${!canAdvance ? ' disabled' : ''}>Next</button>`) +
+      '</div>'
+    : `<div class="jp-actions"><button type="button" class="jp-submit jp-survey-submit"${submitting || !canAdvance ? ' disabled' : ''}>${submitting ? 'Submitting...' : 'Submit survey'}</button></div>`;
+
+  container.innerHTML =
+    `<div class="jp-widget jp-survey jp-theme-${esc(themeClass)}" role="region" aria-label="Survey">` +
+    '<div class="jp-body">' +
+    '<div class="jp-header">' +
+    `<p class="jp-question">${esc(survey_data.title)}</p>` +
+    (survey_data.description ? `<p class="jp-meta">${esc(survey_data.description)}</p>` : '') +
+    '</div>' +
+    progressHtml +
+    feedbackHtml +
+    `<div class="jp-survey-questions">${questionsHtml}</div>` +
+    navHtml +
+    '</div>' +
+    footer +
+    '</div>';
+
+  if (vars && typeof vars === 'object') {
+    const el = container.querySelector('.jp-widget');
+    if (el) {
+      Object.entries(vars).forEach(([prop, val]) => {
+        el.style.setProperty(prop, val);
+      });
+    }
+  }
+
+  container.querySelectorAll('.jp-survey-text-input, .jp-survey-dropdown').forEach(el => {
+    el.addEventListener('change', e => {
+      const qid = Number(e.target.dataset.qid);
+      if (onSetAnswer) onSetAnswer(qid, e.target.value);
+    });
+    if (el.tagName === 'INPUT') {
+      el.addEventListener('input', e => {
+        const qid = Number(e.target.dataset.qid);
+        if (onSetAnswer) onSetAnswer(qid, e.target.value);
+      });
+    }
+  });
+
+  container.querySelectorAll('.jp-option[data-oid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qid = Number(btn.dataset.qid);
+      const oid = Number(btn.dataset.oid);
+      const question = questions.find(q => Number(q.id) === qid);
+      if (!question || !onSetAnswer) return;
+
+      if (question.question_type === 'multiple_choice') {
+        const current = new Set(Array.isArray(answers.get(qid)) ? answers.get(qid).map(Number) : []);
+        if (current.has(oid)) current.delete(oid);
+        else current.add(oid);
+        onSetAnswer(qid, Array.from(current));
+      } else {
+        onSetAnswer(qid, oid);
+      }
+    });
+  });
+
+  container.querySelectorAll('.jp-star[data-qid], .jp-number-btn[data-qid], .jp-emoji-btn[data-qid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qid = Number(btn.dataset.qid);
+      const val = Number(btn.dataset.value);
+      if (onSetAnswer) onSetAnswer(qid, val);
+    });
+  });
+
+  const backBtn = container.querySelector('.jp-survey-back');
+  if (backBtn) backBtn.addEventListener('click', () => { if (onBack) onBack(); });
+
+  const nextBtn = container.querySelector('.jp-survey-next');
+  if (nextBtn) nextBtn.addEventListener('click', () => { if (canAdvance && onNext) onNext(); });
+
+  const submitBtn = container.querySelector('.jp-survey-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      if (!submitting && canAdvance && onSubmit) onSubmit();
+    });
+  }
+}

@@ -1,16 +1,23 @@
 const MIN_MS = 1000;
 const MAX_MS = 60000;
 
+const UPDATE_EVENTS = ['poll.update', 'rating.update', 'survey.update'];
+
 export class EmbedSSE {
-  constructor(streamUrl, { onData, onStale }) {
+  constructor(streamUrl, { onEvent, onStale, currentToolType }) {
     this._url = streamUrl;
-    this._onData = onData;
+    this._onEvent = onEvent;
     this._onStale = onStale;
+    this._currentToolType = currentToolType || 'poll';
     this._es = null;
     this._backoff = MIN_MS;
     this._timer = null;
     this._destroyed = false;
     this._vh = null;
+  }
+
+  setToolType(toolType) {
+    this._currentToolType = toolType;
   }
 
   start() {
@@ -29,19 +36,44 @@ export class EmbedSSE {
     if (this._destroyed || (typeof document !== 'undefined' && document.hidden)) return;
     this._es = new EventSource(this._url);
 
-    const handle = e => {
-      const data = this._json(e.data);
-      if (!data) return;
+    const handleUpdate = (eventName, e) => {
+      const payload = this._json(e.data);
+      if (!payload) return;
       this._backoff = MIN_MS;
-      this._onData(data);
+      this._onEvent?.(eventName, payload);
     };
 
-    this._es.addEventListener('snapshot', handle);
-    this._es.addEventListener('poll.update', handle);
+    this._es.addEventListener('snapshot', e => {
+      const payload = this._json(e.data);
+      if (!payload) return;
+      this._backoff = MIN_MS;
+
+      const snapshotTool = payload.tool;
+      if (snapshotTool && snapshotTool !== this._currentToolType) {
+        this._onEvent?.('tool_type_changed', {
+          tool_type: snapshotTool,
+          snapshot: payload,
+        });
+        return;
+      }
+
+      this._onEvent?.('snapshot', payload);
+    });
+
+    UPDATE_EVENTS.forEach(name => {
+      this._es.addEventListener(name, e => handleUpdate(name, e));
+    });
+
+    this._es.addEventListener('tool_type_changed', e => {
+      const payload = this._json(e.data);
+      if (!payload) return;
+      this._backoff = MIN_MS;
+      this._onEvent?.('tool_type_changed', payload);
+    });
 
     this._es.onerror = () => {
       this._abort();
-      this._onStale();
+      this._onStale?.();
       this._reconnect();
     };
   }
@@ -66,7 +98,7 @@ export class EmbedSSE {
   }
 
   get connected() {
-    return this._es !== null && this._es.readyState === 1; // EventSource.OPEN
+    return this._es !== null && this._es.readyState === 1;
   }
 
   _json(raw) {

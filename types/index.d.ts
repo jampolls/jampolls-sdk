@@ -5,7 +5,7 @@ export interface WidgetOptions {
    */
   theme?: 'auto' | 'light' | 'dark' | 'jampolls';
   /**
-   * Widget layout mode.
+   * Widget layout mode (poll widget only).
    * - `'vertical'` — stacked top-to-bottom (question → image → options). Best for narrow containers.
    * - `'horizontal'` — two-column split (question + image left, options right). Best for wide sections.
    * - `'auto'` — switches automatically based on container width (default). Vertical ≤ 520 px, horizontal above.
@@ -24,10 +24,14 @@ export interface WidgetOptions {
    * Intended for local development and testing.
    */
   apiUrl?: string;
-  /** Called after poll data loads successfully. */
-  onLoad?: (data: PollData) => void;
-  /** Called after a vote is submitted or removed. */
+  /** Called after tool data loads successfully. */
+  onLoad?: (data: EmbedToolData) => void;
+  /** Called after a poll vote is submitted or removed. */
   onVote?: (event: VoteEvent) => void;
+  /** Called after a rating or survey is submitted. */
+  onSubmit?: (event: Record<string, unknown>) => void;
+  /** Called when the dashboard owner switches the active embed tool (via SSE). */
+  onToolChanged?: (payload: ToolSwitchPayload) => void;
   /** Called when a network or API error occurs. */
   onError?: (error: Error) => void;
 }
@@ -41,30 +45,99 @@ export interface PollOption {
 }
 
 export interface PollData {
-  embed_key: string;
-  theme: 'auto' | 'light' | 'dark' | 'jampolls';
-  show_results: boolean;
-  show_branding: boolean;
-  auto_height: boolean;
+  tool_type: 'poll';
   poll_data: {
-    id: number;
     question: string;
     image: string | null;
     options: PollOption[];
     votes_count: number;
-    is_active: boolean;
-    poll_type: string;
     allow_multiple_votes: boolean;
     can_change_vote: boolean;
     allow_anonymous: boolean;
     created_at: string;
-  };
-  embed_settings: {
-    theme: 'auto' | 'light' | 'dark' | 'jampolls';
-    show_results: boolean;
-    show_branding: boolean;
-    auto_height: boolean;
-  };
+    is_active?: boolean;
+  } | null;
+  rating_data: null;
+  survey_data: null;
+  embed_settings: EmbedSettings;
+}
+
+export interface RatingData {
+  tool_type: 'rating';
+  poll_data: null;
+  rating_data: {
+    id: number;
+    title: string;
+    description: string;
+    rating_type: 'stars' | 'numbers' | 'emojis';
+    max_rating: number;
+    min_label: string;
+    max_label: string;
+    show_average: boolean;
+    require_comments: boolean;
+    allow_anonymous: boolean;
+    is_active: boolean;
+    average_rating: number | null;
+    response_count: number;
+  } | null;
+  survey_data: null;
+  embed_settings: EmbedSettings;
+}
+
+export interface SurveyData {
+  tool_type: 'survey';
+  poll_data: null;
+  rating_data: null;
+  survey_data: {
+    id: number;
+    title: string;
+    description: string;
+    display_mode: string;
+    randomize_questions: boolean;
+    allow_anonymous: boolean;
+    auto_advance: boolean;
+    outro_title: string;
+    outro_description: string;
+    outro_image: string | null;
+    is_active: boolean;
+    questions: SurveyQuestion[];
+    sections: SurveySection[];
+  } | null;
+  embed_settings: EmbedSettings;
+}
+
+export interface EmbedSettings {
+  theme: 'auto' | 'light' | 'dark' | 'jampolls';
+  show_results: boolean;
+  show_branding: boolean;
+}
+
+export interface SurveyQuestion {
+  id: number;
+  text: string;
+  question_type: string;
+  required: boolean;
+  order: number;
+  rating_type?: string | null;
+  min_val?: number | null;
+  max_val?: number | null;
+  options?: PollOption[];
+  emojis?: string[] | null;
+}
+
+export interface SurveySection {
+  id: number;
+  title: string;
+  description: string;
+  order: number;
+  questions: SurveyQuestion[];
+}
+
+export type EmbedToolData = PollData | RatingData | SurveyData;
+
+export interface ToolSwitchPayload {
+  tool_type: 'poll' | 'rating' | 'survey';
+  snapshot: Record<string, unknown>;
 }
 
 export interface SingleVoteEvent {

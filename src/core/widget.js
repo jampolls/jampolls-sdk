@@ -4,12 +4,13 @@ import { renderLoading, renderError, renderPoll } from './renderer.js';
 
 const CACHE_PREFIX = 'jampolls_embed_';
 
-export class Widget {
+export class PollWidget {
   constructor(embedKey, container, opts) {
     this.embedKey = embedKey;
     this.container = container;
     this.opts = opts || {};
     this.api = new JampollsApi(this.opts.apiUrl);
+    this.toolType = 'poll';
     this.data = null;
     this.votedOptionIds = new Set();
     this.pendingOptionIds = new Set();
@@ -71,15 +72,24 @@ export class Widget {
     this._saveCache();
   }
 
+  _handleSseEvent(event, payload) {
+    if (this._destroyed) return;
+    if (event === 'tool_type_changed') {
+      this.opts.onToolSwitch?.(payload);
+      return;
+    }
+    if (event === 'poll.update' || (event === 'snapshot' && payload.tool === 'poll')) {
+      this._applySsePayload(payload);
+      this._render();
+    }
+  }
+
   _startSSE() {
     if (this._sse || this._destroyed) return;
     const streamUrl = `${this.api.baseUrl}/api/v1/widgets/${this.embedKey}/stream/`;
     this._sse = new EmbedSSE(streamUrl, {
-      onData: payload => {
-        if (this._destroyed) return;
-        this._applySsePayload(payload);
-        if (!this._destroyed) this._render();
-      },
+      currentToolType: this.toolType,
+      onEvent: (event, payload) => this._handleSseEvent(event, payload),
       onStale: () => {
         if (this._destroyed || !this.isStale) return;
         const cached = this._loadCache();
@@ -117,23 +127,32 @@ export class Widget {
     this._ro.observe(this.container);
   }
 
-  init() {
+  init(envelope) {
     renderLoading(this.container);
     this._setupLayoutObserver();
-    this._load();
+    if (envelope) {
+      this._applyEnvelope(envelope);
+    } else {
+      this._load();
+    }
+  }
+
+  _applyEnvelope(envelope) {
+    this.data = envelope;
+    this.isStale = false;
+    this.lastFetchedAt = null;
+    this.feedback = null;
+    this._saveCache();
+    this._render();
+    this._startSSE();
+    if (this.opts.onLoad) this.opts.onLoad(this.data);
   }
 
   async _load() {
     try {
-      this.data = await this.api.fetchPoll(this.embedKey);
+      this.data = await this.api.fetchTool(this.embedKey);
       if (this._destroyed) return;
-      this.isStale = false;
-      this.lastFetchedAt = null;
-      this.feedback = null;
-      this._saveCache();
-      this._render();
-      this._startSSE();
-      if (this.opts.onLoad) this.opts.onLoad(this.data);
+      this._applyEnvelope(this.data);
     } catch (err) {
       if (this._destroyed) return;
       const cached = this._loadCache();
@@ -191,10 +210,8 @@ export class Widget {
         this.votedOptionIds = removing ? new Set() : new Set([optionId]);
       }
 
-      // SSE will push updated counts; only re-fetch via REST when SSE is not connected
-      // (avoids inflating the view counter on every vote).
       if (!this._sse?.connected) {
-        this.data = await this.api.fetchPoll(this.embedKey);
+        this.data = await this.api.fetchTool(this.embedKey);
         this.isStale = false;
         this.lastFetchedAt = null;
         this._saveCache();
@@ -235,7 +252,7 @@ export class Widget {
       this.votedOptionIds = selectedIds;
       this.pendingOptionIds = new Set(selectedIds);
       if (!this._sse?.connected) {
-        this.data = await this.api.fetchPoll(this.embedKey);
+        this.data = await this.api.fetchTool(this.embedKey);
         this.isStale = false;
         this.lastFetchedAt = null;
         this._saveCache();
@@ -290,3 +307,6 @@ export class Widget {
     this.container.innerHTML = '';
   }
 }
+
+/** @deprecated Use PollWidget — kept for backward compatibility */
+export const Widget = PollWidget;

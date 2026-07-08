@@ -14,12 +14,16 @@
          padding-bottom: 8px; }
     pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 8px;
           font-size: 13px; overflow-x: auto; margin: 0 0 16px; }
+    .hint { font-size: 13px; color: #64748b; margin-bottom: 12px; }
   </style>
 </head>
 <body>
 
   <h1>Jampolls Embed Examples</h1>
-  <p class="sub">Replace <code>YOUR_EMBED_KEY</code> with the key from your Jampolls dashboard.</p>
+  <p class="sub">
+    Replace <code>YOUR_EMBED_KEY</code> with a key from dashboard → <strong>Embeds</strong>.
+    The same key renders a poll, rating, or survey depending on which tool is active.
+  </p>
 
   <!-- ── 1. Auto-embed via data attribute (zero JS required) ── -->
   <section>
@@ -32,57 +36,64 @@
   <!-- ── 2. Manual JS init ── -->
   <section>
     <h2>2 · Manual init</h2>
-    <pre>JamPolls.embed('YOUR_EMBED_KEY', '#poll-manual');</pre>
-    <div id="poll-manual"></div>
+    <pre>JamPolls.embed('YOUR_EMBED_KEY', '#widget-manual');</pre>
+    <div id="widget-manual"></div>
   </section>
 
   <!-- ── 3. Dark theme with callbacks and CSS variable overrides ── -->
   <section>
     <h2>3 · Dark theme + callbacks + custom vars</h2>
-    <pre>JamPolls.embed('YOUR_EMBED_KEY', '#poll-dark', {
+    <p class="hint">Open DevTools console — <code>onLoad</code> logs <code>tool_type</code>; switch the active tool in Embeds to see <code>onToolChanged</code>.</p>
+    <pre>JamPolls.embed('YOUR_EMBED_KEY', '#widget-dark', {
   theme: 'dark',
   vars: {
     '--jp-primary': '#7c3aed',
     '--jp-radius': '12px',
     'max-width': '480px',
   },
-  onLoad: data => console.log('loaded', data),
-  onVote: e  => console.log('voted',  e),
+  onLoad: data => console.log('loaded', data.tool_type, data),
+  onVote: e  => console.log('poll vote', e),
+  onSubmit: e => console.log('rating/survey submit', e),
+  onToolChanged: p => console.log('tool switched', p.tool_type),
   onError: e => console.error(e),
 });</pre>
-    <div id="poll-dark"></div>
+    <div id="widget-dark"></div>
   </section>
 
   <!-- ── 4. Jampolls branded theme ── -->
   <section>
     <h2>4 · Jampolls branded theme</h2>
-    <div id="poll-branded"></div>
+    <div id="widget-branded"></div>
   </section>
 
   <!--
-    Load the SDK from CDN (production):
+    Production CDN:
       <script src="https://cdn.jampolls.com/jampolls.min.js"></script>
 
-    Local dev build:
+    Local dev (run npm run build first):
   -->
   <script src="../dist/jampolls.js"></script>
 
   <script>
-    JamPolls.embed('YOUR_EMBED_KEY', '#poll-manual');
+    JamPolls.embed('YOUR_EMBED_KEY', '#widget-manual');
 
-    JamPolls.embed('YOUR_EMBED_KEY', '#poll-dark', {
+    JamPolls.embed('YOUR_EMBED_KEY', '#widget-dark', {
       theme: 'dark',
       vars: {
         '--jp-primary': '#7c3aed',
         '--jp-radius': '12px',
         'max-width': '480px',
       },
-      onLoad:  function(data) { console.log('Poll loaded:', data.poll_data.question); },
-      onVote:  function(e)    { console.log('Voted:', e.optionId, '| removed:', e.removed); },
-      onError: function(err)  { console.error('Error:', err.message); },
+      onLoad: function(data) {
+        console.log('Loaded tool:', data.tool_type, data);
+      },
+      onVote: function(e) { console.log('Voted:', e); },
+      onSubmit: function(e) { console.log('Submitted:', e); },
+      onToolChanged: function(p) { console.log('Tool changed to:', p.tool_type); },
+      onError: function(err) { console.error('Error:', err.message); },
     });
 
-    JamPolls.embed('YOUR_EMBED_KEY', '#poll-branded', { theme: 'jampolls' });
+    JamPolls.embed('YOUR_EMBED_KEY', '#widget-branded', { theme: 'jampolls' });
   </script>
 
 </body>

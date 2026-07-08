@@ -377,3 +377,264 @@
   .jp-option,
   .jp-bar { transition: none; }
 }
+
+/* ── Rating widget ── */
+.jp-rating .jp-body {
+  padding: 0 0 14px;
+}
+
+.jp-avg-display {
+  font-size: 13px;
+  color: var(--jp-text-muted);
+  margin-top: 6px;
+}
+
+.jp-stars {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px 8px;
+  justify-content: center;
+}
+
+.jp-star {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--jp-border);
+  cursor: pointer;
+  padding: 2px;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.jp-star:hover {
+  transform: scale(1.08);
+}
+
+.jp-star.jp-star-filled {
+  color: var(--jp-primary);
+}
+
+.jp-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 8px;
+  justify-content: center;
+}
+
+.jp-number-btn {
+  min-width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1.5px solid var(--jp-border);
+  background: var(--jp-surface);
+  color: var(--jp-text);
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.jp-number-btn:hover {
+  border-color: var(--jp-primary);
+}
+
+.jp-number-btn.jp-selected {
+  border-color: var(--jp-primary);
+  background: rgba(255, 151, 36, 0.15);
+  color: var(--jp-primary);
+}
+
+.jp-emojis {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px 8px;
+  justify-content: center;
+}
+
+.jp-emoji-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--jp-option-radius);
+  border: 1.5px solid var(--jp-border);
+  background: var(--jp-surface);
+  font-size: 22px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+
+.jp-emoji-btn.jp-selected {
+  border-color: var(--jp-primary);
+  background: rgba(255, 151, 36, 0.12);
+  transform: scale(1.05);
+}
+
+.jp-rating-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 16px 8px;
+  font-size: 12px;
+  color: var(--jp-text-muted);
+}
+
+.jp-rating-comment {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 4px 16px 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--jp-border);
+  border-radius: var(--jp-option-radius);
+  background: var(--jp-bg);
+  color: var(--jp-text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.jp-rating-comment:focus {
+  outline: 2px solid var(--jp-primary);
+  outline-offset: 1px;
+}
+
+.jp-rating-submitted {
+  text-align: center;
+  padding: 20px 16px 8px;
+}
+
+.jp-rating-submitted p {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--jp-primary);
+  margin-bottom: 8px;
+}
+
+/* ── Survey widget ── */
+.jp-survey .jp-body {
+  padding-bottom: 14px;
+}
+
+.jp-survey-progress {
+  padding: 0 16px 12px;
+}
+
+.jp-survey-progress-bar {
+  height: 4px;
+  background: var(--jp-border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.jp-survey-progress-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: var(--jp-primary);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.jp-survey-step {
+  font-size: 12px;
+  color: var(--jp-text-muted);
+}
+
+.jp-survey-questions {
+  padding: 0 12px;
+}
+
+.jp-survey-question {
+  margin-bottom: 16px;
+}
+
+.jp-survey-q-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--jp-text);
+}
+
+.jp-survey-required {
+  color: var(--jp-primary);
+  margin-left: 2px;
+}
+
+.jp-survey-text-input,
+.jp-survey-dropdown {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--jp-border);
+  border-radius: var(--jp-option-radius);
+  background: var(--jp-surface);
+  color: var(--jp-text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.jp-survey-text-input:focus,
+.jp-survey-dropdown:focus {
+  outline: 2px solid var(--jp-primary);
+  outline-offset: 1px;
+}
+
+.jp-survey-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jp-survey-options .jp-option {
+  margin: 0;
+}
+
+.jp-survey-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #b42318;
+}
+
+.jp-survey-nav {
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px 0;
+}
+
+.jp-survey-back {
+  flex: 0 0 auto;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--jp-border);
+  background: var(--jp-surface);
+  color: var(--jp-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jp-survey-back:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.jp-survey-nav .jp-submit {
+  flex: 1;
+}
+
+.jp-survey-outro {
+  padding: 28px 20px;
+  text-align: center;
+}
+
+.jp-survey-outro-image {
+  display: block;
+  max-width: 200px;
+  max-height: 160px;
+  margin: 0 auto 16px;
+  border-radius: var(--jp-option-radius);
+  object-fit: cover;
+}

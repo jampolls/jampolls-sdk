@@ -381,17 +381,17 @@
     <!-- Sidebar -->
     <aside class="sidebar">
 
-      <!-- Poll widget -->
+      <!-- Embed widget (poll, rating, or survey — set active tool in Embeds) -->
       <div class="sidebar-section">
-        <div class="section-label">Reader Poll</div>
+        <div class="section-label">Reader Engagement</div>
         <div class="poll-block">
-          <p class="poll-intro">We want to know what you think. Cast your vote below.</p>
+          <p class="poll-intro">We want to know what you think. Participate below.</p>
 
           <!--
-            Replace YOUR_EMBED_KEY with your actual embed key from the Jampolls dashboard.
-            That's the only change needed.
+            Replace YOUR_EMBED_KEY with your embed key from dashboard → Embeds.
+            The widget type follows whichever tool you have active there.
           -->
-          <div id="jp-poll"></div>
+          <div id="jp-embed"></div>
         </div>
       </div>
 
@@ -445,12 +445,15 @@
   <!-- SDK -->
   <script src="../dist/jampolls.min.js"></script>
   <script>
-    JamPolls.embed('YOUR_EMBED_KEY', '#jp-poll', {
-      apiUrl: 'http://localhost:8000',
+    JamPolls.embed('YOUR_EMBED_KEY', '#jp-embed', {
+      apiUrl: 'http://localhost:8000', // remove for production / hub.jampolls.com
       theme: 'auto',
-      onVote: function(e) {
-        console.log('Voted:', e);
+      onLoad: function(data) {
+        console.log('Active tool:', data.tool_type);
       },
+      onVote: function(e) { console.log('Poll vote:', e); },
+      onSubmit: function(e) { console.log('Rating/survey submit:', e); },
+      onToolChanged: function(p) { console.log('Switched to:', p.tool_type); },
     });
   </script>
 
