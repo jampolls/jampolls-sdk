@@ -25,13 +25,27 @@ async function mountWidget(embedKey, container, opts) {
   renderLoading(container);
 
   try {
-    await getVoterId(api.baseUrl);
-    const envelope = await api.fetchTool(embedKey);
+    // Fetch voter identity and tool data in parallel — voter ID is only needed
+    // at vote time, but warming it up here avoids a sequential round-trip.
+    const [, envelope] = await Promise.all([
+      getVoterId(api.baseUrl),
+      api.fetchTool(embedKey),
+    ]);
     if (!container.isConnected) return null;
+
+    const ctx = _context.get(container);
+    // Track the authoritative tool_type so we can ignore stale SSE snapshots
+    // that still point to the old tool after an admin-side switch.
+    if (ctx) ctx._knownToolType = envelope.tool_type;
 
     const widgetOpts = {
       ...opts,
       onToolSwitch: (payload) => {
+        const currentCtx = _context.get(container);
+        // If the SSE payload tool_type matches what we just fetched, the SSE
+        // cache is stale (tool changed before SSE invalidated). Ignore it —
+        // the widget is already showing the correct tool.
+        if (payload.tool_type === currentCtx?._knownToolType) return;
         if (opts.onToolChanged) opts.onToolChanged(payload);
         remountWidget(container);
       },

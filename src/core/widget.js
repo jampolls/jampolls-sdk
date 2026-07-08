@@ -138,6 +138,13 @@ export class PollWidget {
   }
 
   _applyEnvelope(envelope) {
+    // Guard: fetchTool returned a different tool type (admin switched mid-session
+    // or SSE cache was stale on reconnect). Hand off rather than rendering poll
+    // UI with poll_data: null, which crashes renderPoll.
+    if (envelope.tool_type && envelope.tool_type !== 'poll') {
+      this.opts.onToolSwitch?.({ tool_type: envelope.tool_type });
+      return;
+    }
     this.data = envelope;
     this.isStale = false;
     this.lastFetchedAt = null;
@@ -157,6 +164,12 @@ export class PollWidget {
       if (this._destroyed) return;
       const cached = this._loadCache();
       if (cached?.data) {
+        // Cached data may belong to a different tool type — hand off instead
+        // of crashing renderPoll with poll_data: null.
+        if (cached.data.tool_type && cached.data.tool_type !== 'poll') {
+          this.opts.onToolSwitch?.({ tool_type: cached.data.tool_type });
+          return;
+        }
         this.data = cached.data;
         this.isStale = true;
         this.lastFetchedAt = cached.lastFetchedAt;
