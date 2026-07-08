@@ -1,7 +1,7 @@
 import { getVoterId } from './voter.js';
 
 const BASE_URL = 'https://hub.jampolls.com';
-const SDK_VERSION = '1.0.0';
+const SDK_VERSION = '1.3.0';
 
 function getApiError(data, status) {
   return (
