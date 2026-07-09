@@ -26,7 +26,7 @@ export class JampollsApi {
   }
 
   async fetchTool(embedKey) {
-    const res = await fetch(`${this.baseUrl}/api/v1/widgets/${embedKey}/fetch/`, {
+    const res = await fetch(`${this.baseUrl}/api/v1/widgets/${embedKey}/fetch/?src=embed`, {
       headers: { 'X-SDK-Version': SDK_VERSION },
     });
     const data = await res.json().catch(() => ({}));
