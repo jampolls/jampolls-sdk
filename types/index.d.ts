@@ -24,6 +24,10 @@ export interface WidgetOptions {
    * Intended for local development and testing.
    */
   apiUrl?: string;
+  /**
+   * Target environment. Defaults to 'production'. Ignored if apiUrl is also set.
+   */
+  env?: 'production' | 'sandbox';
   /** Called after tool data loads successfully. */
   onLoad?: (data: EmbedToolData) => void;
   /** Called after a poll vote is submitted or removed. */
@@ -42,6 +46,8 @@ export interface PollOption {
   image: string | null;
   votes_count: number;
   placement: number;
+  /** Survey question options only: true for the server-managed "Other" write-in option. */
+  is_other?: boolean;
 }
 
 export interface PollData {
@@ -123,6 +129,12 @@ export interface SurveyQuestion {
   max_val?: number | null;
   options?: PollOption[];
   emojis?: string[] | null;
+  /** Whether respondents may write in their own answer via the "Other" option (single_choice/multiple_choice/dropdown). */
+  allow_other_option?: boolean;
+  /** multiple_choice only: minimum options the respondent must select if they answer at all. */
+  min_selections?: number | null;
+  /** multiple_choice only: maximum options the respondent may select. */
+  max_selections?: number | null;
 }
 
 export interface SurveySection {

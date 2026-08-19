@@ -1,4 +1,4 @@
-import { JampollsApi } from './api.js';
+import { JampollsApi, resolveBaseUrl } from './api.js';
 import { EmbedSSE } from './sse.js';
 import { renderLoading, renderError, renderSurvey, flattenSurveyQuestions } from './renderer.js';
 
@@ -7,13 +7,14 @@ export class SurveyWidget {
     this.embedKey = embedKey;
     this.container = container;
     this.opts = opts || {};
-    this.api = new JampollsApi(this.opts.apiUrl);
+    this.api = new JampollsApi(resolveBaseUrl(this.opts));
     this.toolType = 'survey';
     this.data = null;
     this.state = {
       phase: 'survey',
       currentStep: 0,
       answers: new Map(),
+      otherText: new Map(),
       submitted: false,
       feedback: null,
       validationErrors: new Map(),
@@ -70,6 +71,7 @@ export class SurveyWidget {
       phase: 'survey',
       currentStep: 0,
       answers: new Map(),
+      otherText: new Map(),
       submitted: false,
       feedback: null,
       validationErrors: new Map(),
@@ -107,6 +109,26 @@ export class SurveyWidget {
     return this.state.answers.get(Number(question.id));
   }
 
+  _setOtherText(questionId, text) {
+    this.state.otherText.set(Number(questionId), text);
+    this.state.validationErrors.delete(Number(questionId));
+    this.state.feedback = null;
+    this._render();
+  }
+
+  _otherOption(question) {
+    return (question.options || []).find(o => o.is_other);
+  }
+
+  /** Normalize a choice-type question's stored answer value to an array of selected option ids. */
+  _selectedIds(question) {
+    const value = this._answerValue(question);
+    if (question.question_type === 'multiple_choice') {
+      return Array.isArray(value) ? value : [];
+    }
+    return value !== undefined && value !== null && value !== '' ? [value] : [];
+  }
+
   _isAnswered(question) {
     const value = this._answerValue(question);
     if (value === undefined || value === null) return false;
@@ -119,15 +141,57 @@ export class SurveyWidget {
     return value !== '' && value !== null;
   }
 
+  /**
+   * Validate a single question's current answer against required-ness,
+   * multiple_choice min/max selection limits, and the "Other" free-text
+   * requirement. Returns an error message string, or null if valid.
+   *
+   * Selection-count and "Other" text rules apply as soon as the respondent
+   * selects anything — even on optional questions — mirroring the backend:
+   * a question can be skipped entirely, but a partial/invalid answer can't
+   * be submitted.
+   */
+  _questionError(question) {
+    const isChoiceType = ['single_choice', 'multiple_choice', 'dropdown'].includes(question.question_type);
+
+    if (!isChoiceType) {
+      if (question.required && !this._isAnswered(question)) return 'This question is required';
+      return null;
+    }
+
+    const selectedIds = this._selectedIds(question);
+    if (selectedIds.length === 0) {
+      return question.required ? 'This question is required' : null;
+    }
+
+    if (question.question_type === 'multiple_choice') {
+      const { min_selections, max_selections } = question;
+      if (min_selections && selectedIds.length < min_selections) {
+        return `Please select at least ${min_selections} option${min_selections === 1 ? '' : 's'}`;
+      }
+      if (max_selections && selectedIds.length > max_selections) {
+        return `Please select at most ${max_selections} option${max_selections === 1 ? '' : 's'}`;
+      }
+    }
+
+    const otherOption = this._otherOption(question);
+    if (otherOption && selectedIds.includes(otherOption.id)) {
+      const text = this.state.otherText.get(Number(question.id));
+      if (!text || !text.trim()) return "Please provide your answer for 'Other'";
+    }
+
+    return null;
+  }
+
   _canAdvance() {
     const surveyData = this.data?.survey_data || {};
     const questions = this._getQuestions();
     if (surveyData.display_mode === 'all_questions') {
-      return questions.every(q => !q.required || this._isAnswered(q));
+      return questions.every(q => this._questionError(q) === null);
     }
     const current = questions[this.state.currentStep];
     if (!current) return false;
-    return !current.required || this._isAnswered(current);
+    return this._questionError(current) === null;
   }
 
   _next() {
@@ -157,11 +221,14 @@ export class SurveyWidget {
       if (['likert', 'rating'].includes(q.question_type)) {
         return { ...base, numeric_answer: Number(value) };
       }
-      if (q.question_type === 'multiple_choice') {
-        return { ...base, option_ids: Array.isArray(value) ? value : [] };
-      }
-      if (['single_choice', 'dropdown'].includes(q.question_type)) {
-        return { ...base, option_ids: value != null ? [value] : [] };
+      if (['single_choice', 'multiple_choice', 'dropdown'].includes(q.question_type)) {
+        const optionIds = this._selectedIds(q);
+        const answer = { ...base, option_ids: optionIds };
+        const otherOption = this._otherOption(q);
+        if (otherOption && optionIds.includes(otherOption.id)) {
+          answer.other_text = (this.state.otherText.get(Number(q.id)) || '').trim();
+        }
+        return answer;
       }
       return base;
     }).filter(a => {
@@ -178,14 +245,13 @@ export class SurveyWidget {
     const errors = new Map();
 
     questions.forEach(q => {
-      if (q.required && !this._isAnswered(q)) {
-        errors.set(Number(q.id), 'This question is required');
-      }
+      const message = this._questionError(q);
+      if (message) errors.set(Number(q.id), message);
     });
 
     if (errors.size > 0) {
       this.state.validationErrors = errors;
-      this.state.feedback = { type: 'error', message: 'Please answer all required questions.' };
+      this.state.feedback = { type: 'error', message: 'Please check your answers before submitting.' };
       this._render();
       return;
     }
@@ -216,6 +282,7 @@ export class SurveyWidget {
       questions: this._getQuestions(),
       submitting: this.submitting,
       onSetAnswer: (id, value) => this._setAnswer(id, value),
+      onSetOtherText: (id, text) => this._setOtherText(id, text),
       onNext: () => this._next(),
       onBack: () => this._back(),
       onSubmit: () => this._submitSurvey(),

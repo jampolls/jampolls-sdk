@@ -374,7 +374,25 @@ export function flattenSurveyQuestions(surveyData) {
   return [...(surveyData.questions || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
-function renderSurveyQuestionInput(question, value, error, onSetAnswer) {
+function selectionHintText(question) {
+  const { min_selections: min, max_selections: max } = question;
+  if (min && max) return min === max ? `Select exactly ${min}` : `Select ${min}–${max}`;
+  if (min) return `Select at least ${min}`;
+  if (max) return `Select up to ${max}`;
+  return '';
+}
+
+/** Renders the write-in text field beneath a choice list when the "Other" option is selected. */
+function renderOtherTextField(qid, question, selectedIds, otherTextValue) {
+  const otherOption = (question.options || []).find(o => o.is_other);
+  if (!otherOption || !selectedIds.includes(Number(otherOption.id))) return '';
+  return (
+    `<input class="jp-survey-other-input" type="text" maxlength="250" placeholder="Please specify" ` +
+    `value="${esc(otherTextValue ?? '')}" data-qid="${qid}">`
+  );
+}
+
+function renderSurveyQuestionInput(question, value, error, onSetAnswer, otherTextValue) {
   const qid = Number(question.id);
   const requiredMark = question.required ? '<span class="jp-survey-required" aria-hidden="true">*</span>' : '';
   const errorHtml = error ? `<div class="jp-survey-error" role="alert">${esc(error)}</div>` : '';
@@ -415,10 +433,12 @@ function renderSurveyQuestionInput(question, value, error, onSetAnswer) {
     const optsHtml = options.map(opt =>
       `<option value="${Number(opt.id)}"${Number(value) === Number(opt.id) ? ' selected' : ''}>${esc(opt.text)}</option>`
     ).join('');
+    const selectedIds = value != null && value !== '' ? [Number(value)] : [];
     return (
       `<div class="jp-survey-question" data-qid="${qid}">` +
       `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
       `<select class="jp-survey-dropdown" data-qid="${qid}"><option value="">Select…</option>${optsHtml}</select>` +
+      renderOtherTextField(qid, question, selectedIds, otherTextValue) +
       errorHtml +
       '</div>'
     );
@@ -431,16 +451,21 @@ function renderSurveyQuestionInput(question, value, error, onSetAnswer) {
       const oid = Number(opt.id);
       const checked = selected.has(oid);
       return (
-        `<button type="button" class="jp-option jp-survey-checkbox${checked ? ' jp-voted' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${checked}">` +
+        `<button type="button" class="jp-option jp-survey-checkbox${checked ? ' jp-voted' : ''}${opt.is_other ? ' jp-option-other' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${checked}">` +
         `<span class="jp-choice-indicator" aria-hidden="true"></span>` +
         `<span class="jp-option-text">${esc(opt.text)}</span>` +
         '</button>'
       );
     }).join('');
+    const selectionHint = (question.min_selections || question.max_selections)
+      ? `<p class="jp-meta jp-survey-selection-hint">${selectionHintText(question)}</p>`
+      : '';
     return (
       `<div class="jp-survey-question" data-qid="${qid}">` +
       `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
+      selectionHint +
       `<div class="jp-survey-options jp-options-multiple">${optsHtml}</div>` +
+      renderOtherTextField(qid, question, Array.from(selected), otherTextValue) +
       errorHtml +
       '</div>'
     );
@@ -452,15 +477,17 @@ function renderSurveyQuestionInput(question, value, error, onSetAnswer) {
       const oid = Number(opt.id);
       const selected = Number(value) === oid;
       return (
-        `<button type="button" class="jp-option${selected ? ' jp-voted' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${selected}">` +
+        `<button type="button" class="jp-option${selected ? ' jp-voted' : ''}${opt.is_other ? ' jp-option-other' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${selected}">` +
         `<span class="jp-option-text">${esc(opt.text)}</span>` +
         '</button>'
       );
     }).join('');
+    const selectedIds = value != null ? [Number(value)] : [];
     return (
       `<div class="jp-survey-question" data-qid="${qid}">` +
       `<label class="jp-survey-q-label">${esc(question.text)}${requiredMark}</label>` +
       `<div class="jp-survey-options">${optsHtml}</div>` +
+      renderOtherTextField(qid, question, selectedIds, otherTextValue) +
       errorHtml +
       '</div>'
     );
@@ -531,11 +558,13 @@ export function renderSurvey(container, data, state) {
     phase,
     currentStep,
     answers,
+    otherText,
     validationErrors,
     feedback,
     submitting,
     questions,
     onSetAnswer,
+    onSetOtherText,
     onNext,
     onBack,
     onSubmit,
@@ -582,7 +611,8 @@ export function renderSurvey(container, data, state) {
   const questionsHtml = visibleQuestions.map(q => {
     const val = answers.get(Number(q.id));
     const err = validationErrors.get(Number(q.id));
-    return renderSurveyQuestionInput(q, val, err, onSetAnswer);
+    const otherVal = otherText ? otherText.get(Number(q.id)) : undefined;
+    return renderSurveyQuestionInput(q, val, err, onSetAnswer, otherVal);
   }).join('');
 
   const isLastStep = !isOneByOne || currentStep >= questions.length - 1;
@@ -630,6 +660,13 @@ export function renderSurvey(container, data, state) {
         if (onSetAnswer) onSetAnswer(qid, e.target.value);
       });
     }
+  });
+
+  container.querySelectorAll('.jp-survey-other-input').forEach(el => {
+    el.addEventListener('input', e => {
+      const qid = Number(e.target.dataset.qid);
+      if (onSetOtherText) onSetOtherText(qid, e.target.value);
+    });
   });
 
   container.querySelectorAll('.jp-option[data-oid]').forEach(btn => {

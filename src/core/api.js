@@ -1,7 +1,22 @@
 import { getVoterId } from './voter.js';
 
 const BASE_URL = 'https://hub.jampolls.com';
-const SDK_VERSION = '1.3.2';
+// Internal use only — not documented beyond a generic mention in the public config.
+const ENVIRONMENT_URLS = {
+  production: BASE_URL,
+  sandbox: 'https://staging-hub.jampolls.com',
+};
+const SDK_VERSION = '1.4.0';
+
+/**
+ * Resolve the effective API base URL from widget options.
+ * Precedence: explicit apiUrl override > env shorthand > production default.
+ */
+export function resolveBaseUrl(opts = {}) {
+  if (opts.apiUrl) return opts.apiUrl;
+  if (opts.env && ENVIRONMENT_URLS[opts.env]) return ENVIRONMENT_URLS[opts.env];
+  return BASE_URL;
+}
 
 function getApiError(data, status) {
   return (

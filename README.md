@@ -129,6 +129,7 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
 | `layout` | `'vertical' \| 'horizontal' \| 'auto'` | Poll widget layout only. `auto` switches at 520 px container width. |
 | `vars` | `Record<string, string>` | CSS custom property overrides applied directly to the widget. |
 | `apiUrl` | `string` | API origin override for local development. Defaults to `https://hub.jampolls.com`. |
+| `env` | `'production' \| 'sandbox'` | Target environment copy. Defaults to `'production'`. Ignored if `apiUrl` is also set. |
 | `onLoad` | `(data: EmbedToolData) => void` | Fired when tool data loads. Check `data.tool_type` (`poll`, `rating`, or `survey`). |
 | `onVote` | `(event: VoteEvent) => void` | Poll only — fired after a vote is submitted or removed. |
 | `onSubmit` | `(event) => void` | Rating / survey — fired after a successful submission. |
@@ -148,6 +149,8 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
 | `survey` | Text, choice, likert/rating, dropdown questions | `POST /widgets/{key}/submit/` |
 
 Survey display modes: `all_questions`, `one_by_one`, and `auto_advance` (auto-advances 300 ms after a single-choice or rating answer in step mode).
+
+Choice questions (`single_choice`, `multiple_choice`, `dropdown`) support an owner-configured "Other" write-in option and, for `multiple_choice`, a minimum/maximum number of selections — both are enforced client-side before submit and validated again by the API.
 
 ---
 

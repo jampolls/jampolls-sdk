@@ -1,5 +1,5 @@
 import '../styles/widget.css';
-import { JampollsApi } from './api.js';
+import { JampollsApi, resolveBaseUrl } from './api.js';
 import { getVoterId } from './voter.js';
 import { PollWidget } from './widget.js';
 import { RatingWidget } from './rating.js';
@@ -21,7 +21,7 @@ function createWidget(toolType, embedKey, container, opts) {
 }
 
 async function mountWidget(embedKey, container, opts) {
-  const api = new JampollsApi(opts.apiUrl);
+  const api = new JampollsApi(resolveBaseUrl(opts));
   renderLoading(container);
 
   try {

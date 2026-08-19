@@ -597,6 +597,28 @@
   color: #b42318;
 }
 
+.jp-survey-selection-hint {
+  margin: -2px 0 6px;
+  font-size: 12px;
+}
+
+.jp-survey-other-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--jp-border);
+  border-radius: var(--jp-option-radius);
+  background: var(--jp-surface);
+  color: var(--jp-text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.jp-survey-other-input:focus {
+  outline: 2px solid var(--jp-primary);
+  outline-offset: 1px;
+}
+
 .jp-survey-nav {
   display: flex;
   gap: 8px;

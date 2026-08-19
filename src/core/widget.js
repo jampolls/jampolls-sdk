@@ -1,4 +1,4 @@
-import { JampollsApi } from './api.js';
+import { JampollsApi, resolveBaseUrl } from './api.js';
 import { EmbedSSE } from './sse.js';
 import { renderLoading, renderError, renderPoll } from './renderer.js';
 
@@ -9,7 +9,7 @@ export class PollWidget {
     this.embedKey = embedKey;
     this.container = container;
     this.opts = opts || {};
-    this.api = new JampollsApi(this.opts.apiUrl);
+    this.api = new JampollsApi(resolveBaseUrl(this.opts));
     this.toolType = 'poll';
     this.data = null;
     this.votedOptionIds = new Set();
