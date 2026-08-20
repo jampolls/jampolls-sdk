@@ -6,7 +6,7 @@ const ENVIRONMENT_URLS = {
   production: BASE_URL,
   sandbox: 'https://staging-hub.jampolls.com',
 };
-const SDK_VERSION = '1.4.0';
+const SDK_VERSION = '1.4.1';
 
 /**
  * Resolve the effective API base URL from widget options.
