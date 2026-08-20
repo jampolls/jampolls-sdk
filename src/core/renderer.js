@@ -447,11 +447,15 @@ function renderSurveyQuestionInput(question, value, error, onSetAnswer, otherTex
   if (question.question_type === 'multiple_choice') {
     const selected = new Set(Array.isArray(value) ? value.map(Number) : []);
     const options = [...(question.options || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    // Once max_selections is reached, unselected options disable — matches
+    // the same behavior in the main app's survey builder.
+    const isMaxSelected = !!question.max_selections && selected.size >= question.max_selections;
     const optsHtml = options.map(opt => {
       const oid = Number(opt.id);
       const checked = selected.has(oid);
+      const isDisabled = !checked && isMaxSelected;
       return (
-        `<button type="button" class="jp-option jp-survey-checkbox${checked ? ' jp-voted' : ''}${opt.is_other ? ' jp-option-other' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${checked}">` +
+        `<button type="button" class="jp-option jp-survey-checkbox${checked ? ' jp-voted' : ''}${opt.is_other ? ' jp-option-other' : ''}${isDisabled ? ' jp-option-disabled' : ''}" data-qid="${qid}" data-oid="${oid}" aria-pressed="${checked}"${isDisabled ? ' disabled' : ''}>` +
         `<span class="jp-choice-indicator" aria-hidden="true"></span>` +
         `<span class="jp-option-text">${esc(opt.text)}</span>` +
         '</button>'

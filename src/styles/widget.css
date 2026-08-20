@@ -165,6 +165,14 @@
   cursor: default;
 }
 
+/* multiple_choice option disabled specifically because max_selections was
+   reached — distinct from other disabled states (e.g. locked voting), which
+   should not dim. */
+.jp-option-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .jp-option.jp-voted {
   border-color: var(--jp-primary);
 }
