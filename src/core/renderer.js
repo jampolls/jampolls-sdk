@@ -38,6 +38,20 @@ function resolveTheme(theme) {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+/**
+ * Applies CSS custom property overrides and the fixed-height mode to the
+ * rendered .jp-widget element. Shared by every tool renderer so this stays
+ * one behavior instead of four copies that could drift.
+ */
+export function applyWidgetVisualOverrides(container, vars, autoHeight) {
+  const el = container.querySelector('.jp-widget');
+  if (!el) return;
+  if (vars && typeof vars === 'object') {
+    Object.entries(vars).forEach(([prop, val]) => el.style.setProperty(prop, val));
+  }
+  el.classList.toggle('jp-fixed-height', autoHeight === false);
+}
+
 const BRAND_LOGO_SVG =
   '<svg class="jp-brand-logo" width="124" height="32" viewBox="0 0 124 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
   '<path d="M23.9614 4.68894L24.8906 4.63855L24.6381 0L8.87856 0.860935L9.12996 5.49948L10.4362 5.42704C12.9187 5.2916 15.6705 5.37349 17.2564 7.00402C18.1677 7.94055 19.6489 10.1328 19.321 14.2852L19.3137 14.3482C18.9586 17.582 18.1897 19.4991 16.5703 21.1832C14.3653 23.4783 11.0783 23.6831 9.55105 23.0993C8.18826 22.5775 7.24447 21.5528 6.92917 20.2666C7.70013 20.6939 8.48365 21.0047 9.26194 21.1937C10.0874 21.3932 10.8929 21.494 11.6555 21.494C12.9585 21.494 14.1255 21.2073 15.1237 20.6425C16.1429 20.0671 16.939 19.2293 17.489 18.1521C18.0546 17.0444 18.2976 15.8989 18.2107 14.7461C18.1279 13.6647 17.7456 12.62 17.1045 11.7234C15.6611 9.70652 13.078 8.64924 10.5242 9.02827C9.13939 9.233 7.05068 10.012 5.33803 11.5838C5.21862 11.694 5.1013 11.8074 4.98607 11.925C4.68125 11.4651 4.50946 11.1586 4.50108 11.1449L4.04752 10.3428L0 12.5854L0.45147 13.4033C0.533174 13.5492 1.2748 14.8658 2.50351 16.3777C2.25002 17.3951 2.14317 18.4881 2.18507 19.6272C2.25211 21.4341 2.85756 23.1276 3.93544 24.5261C4.9316 25.8207 6.30277 26.8276 7.89811 27.4386C9.03673 27.8743 10.2393 28.0959 11.4701 28.0959C12.2117 28.0959 13.4456 27.9646 14.1642 27.8082C16.122 27.383 18.2704 26.1115 19.9087 24.4054C22.1535 22.0693 23.2229 19.392 23.7215 14.8564C23.9866 12.4321 23.6901 9.52173 23.3465 6.15358L23.2795 5.48793C23.2586 5.28845 23.3193 5.09421 23.4492 4.94198C23.5791 4.78974 23.7614 4.69944 23.9614 4.68894ZM8.05628 15.4349C8.18512 15.2858 8.32339 15.143 8.46899 15.0097C9.47458 14.0857 10.6603 13.7036 11.2029 13.6227C12.0462 13.4978 12.8716 13.8044 13.3189 14.4049L13.3388 14.4322C13.6708 14.8942 13.6782 15.4191 13.3639 16.0344C12.8203 17.098 11.2428 16.8943 10.3492 16.678C9.64533 16.5069 8.85342 16.0785 8.05628 15.4349Z" fill="#FF9724"/>' +
@@ -60,6 +74,21 @@ export function renderError(container, message) {
   container.innerHTML =
     `<div class="jp-widget jp-error" role="alert">` +
     `<p class="jp-error-msg">${esc(message)}</p></div>`;
+}
+
+// startTrigger: 'cover' — a small branded start screen shown in place of the
+// real tool until the visitor opts in. Nothing is fetched or mounted until
+// the button is clicked, so a scroll-by impression never counts as an attempt.
+export function renderCoverScreen(container, opts, onStart) {
+  const themeClass = resolveTheme(opts.theme);
+  const label = opts.startLabel || 'Start';
+
+  container.innerHTML =
+    `<div class="jp-widget jp-theme-${esc(themeClass)} jp-cover" role="region" aria-label="${esc(label)}">` +
+    `<button type="button" class="jp-cover-btn">${esc(label)}</button>` +
+    `</div>`;
+
+  container.querySelector('.jp-cover-btn').addEventListener('click', onStart, { once: true });
 }
 
 export function renderPoll(container, data, state) {
@@ -169,14 +198,7 @@ export function renderPoll(container, data, state) {
     '</div>';
 
   // Apply any CSS custom property overrides the developer passed in
-  if (vars && typeof vars === 'object') {
-    const el = container.querySelector('.jp-widget');
-    if (el) {
-      Object.entries(vars).forEach(([prop, val]) => {
-        el.style.setProperty(prop, val);
-      });
-    }
-  }
+  applyWidgetVisualOverrides(container, vars, embed_settings.auto_height);
 
   container.querySelectorAll('.jp-option').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -311,14 +333,7 @@ export function renderRating(container, data, state) {
     footer +
     '</div>';
 
-  if (vars && typeof vars === 'object') {
-    const el = container.querySelector('.jp-widget');
-    if (el) {
-      Object.entries(vars).forEach(([prop, val]) => {
-        el.style.setProperty(prop, val);
-      });
-    }
-  }
+  applyWidgetVisualOverrides(container, vars, embed_settings.auto_height);
 
   if (!submitted) {
     container.querySelectorAll('[data-value]').forEach(btn => {
@@ -644,14 +659,7 @@ export function renderSurvey(container, data, state) {
     footer +
     '</div>';
 
-  if (vars && typeof vars === 'object') {
-    const el = container.querySelector('.jp-widget');
-    if (el) {
-      Object.entries(vars).forEach(([prop, val]) => {
-        el.style.setProperty(prop, val);
-      });
-    }
-  }
+  applyWidgetVisualOverrides(container, vars, embed_settings.auto_height);
 
   container.querySelectorAll('.jp-survey-text-input, .jp-survey-dropdown').forEach(el => {
     el.addEventListener('change', e => {
@@ -709,6 +717,236 @@ export function renderSurvey(container, data, state) {
   if (submitBtn) {
     submitBtn.addEventListener('click', () => {
       if (!submitting && canAdvance && onSubmit) onSubmit();
+    });
+  }
+}
+
+// ── Quiz widget ──
+
+function quizOptionIndicator(selected, isMultiple) {
+  const shape = isMultiple ? 'jp-quiz-indicator-square' : 'jp-quiz-indicator-round';
+  const check = selected
+    ? isMultiple
+      ? '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>'
+      : '<span class="jp-quiz-indicator-dot"></span>'
+    : '';
+  return `<span class="jp-quiz-option-indicator ${shape}${selected ? ' jp-quiz-option-indicator-selected' : ''}" aria-hidden="true">${check}</span>`;
+}
+
+function renderQuizOptions(question, selectedIds, onDisabled) {
+  const isMultiple = question.question_type === 'multiple_choice';
+  const isTrueFalse = question.question_type === 'true_false';
+  const selectedSet = new Set(selectedIds);
+
+  if (isTrueFalse) {
+    return (
+      `<div class="jp-quiz-options jp-quiz-options-true-false" role="group" aria-label="Answer options">` +
+      question.options
+        .map(opt => {
+          const selected = selectedSet.has(opt.id);
+          return (
+            `<button type="button" class="jp-quiz-option jp-quiz-option-toggle${selected ? ' jp-quiz-option-selected' : ''}"` +
+            ` data-id="${opt.id}"${onDisabled ? ' disabled' : ''} aria-pressed="${selected}">` +
+            `${esc(opt.text)}</button>`
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  return (
+    `<div class="jp-quiz-options" role="group" aria-label="Answer options">` +
+    question.options
+      .map(opt => {
+        const selected = selectedSet.has(opt.id);
+        const optionImage = imageUrl(opt.image);
+        const hasMedia = !!optionImage;
+        return (
+          `<button type="button" class="jp-quiz-option${hasMedia ? ' jp-quiz-option-has-media' : ''}${selected ? ' jp-quiz-option-selected' : ''}"` +
+          ` data-id="${opt.id}"${onDisabled ? ' disabled' : ''} aria-pressed="${selected}">` +
+          (!hasMedia ? quizOptionIndicator(selected, isMultiple) : '') +
+          (hasMedia ? `<img class="jp-quiz-option-image" src="${esc(optionImage)}" alt="">` : '') +
+          `<span class="jp-quiz-option-text">${esc(opt.text)}</span>` +
+          (hasMedia ? quizOptionIndicator(selected, isMultiple) : '') +
+          '</button>'
+        );
+      })
+      .join('') +
+    '</div>'
+  );
+}
+
+function renderQuizProgress(total, currentIndex) {
+  const segments = Array.from({ length: Math.max(total, 1) }, (_, i) =>
+    `<span class="jp-quiz-progress-segment${i <= currentIndex ? ' jp-quiz-progress-segment-filled' : ''}"></span>`
+  ).join('');
+  return (
+    `<div class="jp-quiz-progress" role="progressbar" aria-valuenow="${currentIndex + 1}"` +
+    ` aria-valuemin="1" aria-valuemax="${total}">${segments}</div>`
+  );
+}
+
+function renderQuizTimer(timeRemainingMs, urgentThresholdS) {
+  if (timeRemainingMs == null) return '';
+  const seconds = Math.max(0, Math.ceil(timeRemainingMs / 1000));
+  const urgent = seconds <= urgentThresholdS;
+  return (
+    `<span class="jp-quiz-timer${urgent ? ' jp-quiz-timer-urgent' : ''}" aria-live="polite">` +
+    `<span class="jp-quiz-num">${seconds}s</span></span>`
+  );
+}
+
+function renderQuizBlocked(data, attemptStatus) {
+  const { show_branding } = data.embed_settings;
+  const footer = show_branding
+    ? `<div class="jp-footer"><a href="https://jampolls.com" target="_blank" rel="noopener noreferrer"><span>Powered by</span>${BRAND_LOGO_SVG}</a></div>`
+    : '';
+  const attemptsLine =
+    attemptStatus?.attempts_allowed != null
+      ? `<p class="jp-quiz-blocked-detail">You've used ${attemptStatus.attempts_used} of ${attemptStatus.attempts_allowed} allowed attempt${attemptStatus.attempts_allowed === 1 ? '' : 's'}.</p>`
+      : '';
+  return (
+    '<div class="jp-quiz-blocked">' +
+    '<p class="jp-quiz-blocked-title">You’ve already completed this quiz</p>' +
+    attemptsLine +
+    '</div>' +
+    footer
+  );
+}
+
+function renderQuizResults(data, results, revealScoreOverride, passThresholdOverride) {
+  const revealScore =
+    revealScoreOverride !== undefined ? revealScoreOverride : data.embed_settings.reveal_score;
+  const passThreshold =
+    passThresholdOverride !== undefined ? passThresholdOverride : data.embed_settings.pass_threshold;
+  const { show_branding } = data.embed_settings;
+  const footer = show_branding
+    ? `<div class="jp-footer"><a href="https://jampolls.com" target="_blank" rel="noopener noreferrer"><span>Powered by</span>${BRAND_LOGO_SVG}</a></div>`
+    : '';
+
+  if (revealScore === false || !results) {
+    return (
+      '<div class="jp-quiz-results">' +
+      '<p class="jp-quiz-results-title">Thanks for completing the quiz!</p>' +
+      '</div>' +
+      footer
+    );
+  }
+
+  const pct = Number(results.percentage_score) || 0;
+  const hasPassLine = typeof passThreshold === 'number' && passThreshold !== null;
+  const passed = hasPassLine ? pct >= passThreshold * 100 : null;
+  const passBadge = hasPassLine
+    ? `<span class="jp-quiz-pass-badge${passed ? ' jp-quiz-pass' : ' jp-quiz-fail'}">${passed ? 'Passed' : 'Not passed'}</span>`
+    : '';
+
+  return (
+    '<div class="jp-quiz-results">' +
+    `<p class="jp-quiz-score">${pct}%</p>` +
+    passBadge +
+    `<p class="jp-quiz-results-detail">${results.correct_answers}/${results.total_questions} correct · ${results.total_score} pts</p>` +
+    '</div>' +
+    footer
+  );
+}
+
+export function renderQuiz(container, data, state) {
+  const { quiz_data, embed_settings } = data;
+  const {
+    phase,
+    attemptStatus,
+    currentQuestion,
+    selected,
+    timeRemainingMs,
+    urgentThresholdS,
+    isLastQuestion,
+    submitting,
+    canAdvance,
+    feedback,
+    results,
+    questions,
+    currentIndex,
+    themeOverride,
+    revealScoreOverride,
+    passThresholdOverride,
+    vars,
+    answerFeedback,
+    checkingAnswer,
+    onToggleOption,
+    onNext,
+  } = state;
+
+  const themeClass = resolveTheme(themeOverride || embed_settings.theme);
+  let body;
+
+  if (phase === 'blocked') {
+    body = renderQuizBlocked(data, attemptStatus);
+  } else if (phase === 'results') {
+    body = renderQuizResults(data, results, revealScoreOverride, passThresholdOverride);
+  } else {
+    const questionImage = imageUrl(currentQuestion?.image);
+    const feedbackHtml = feedback?.message
+      ? `<div class="jp-feedback jp-feedback-${esc(feedback.type || 'error')}" role="alert">${esc(feedback.message)}</div>`
+      : '';
+    const answerFeedbackHtml = answerFeedback
+      ? `<div class="jp-quiz-answer-feedback ${answerFeedback.correct ? 'jp-quiz-answer-feedback-correct' : 'jp-quiz-answer-feedback-wrong'}" role="status">` +
+        `${answerFeedback.correct ? 'Correct!' : 'Not quite.'}</div>`
+      : '';
+    const optionsLocked = submitting || checkingAnswer || !!answerFeedback;
+    const nextLabel = checkingAnswer
+      ? 'Checking…'
+      : answerFeedback
+        ? 'Continue'
+        : submitting
+          ? 'Submitting…'
+          : isLastQuestion
+            ? 'Submit'
+            : 'Next';
+    const nextDisabled = checkingAnswer || submitting || (!answerFeedback && !canAdvance);
+    body =
+      renderQuizProgress(questions.length, currentIndex) +
+      '<div class="jp-quiz-topbar">' +
+      `<span class="jp-quiz-counter">Question ${currentIndex + 1} / ${questions.length}</span>` +
+      renderQuizTimer(timeRemainingMs, urgentThresholdS) +
+      '</div>' +
+      `<h2 class="jp-quiz-question jp-quiz-motion-enter">${esc(currentQuestion?.text || '')}</h2>` +
+      (questionImage ? `<img class="jp-quiz-question-image" src="${esc(questionImage)}" alt="">` : '') +
+      (currentQuestion ? renderQuizOptions(currentQuestion, selected, optionsLocked) : '') +
+      answerFeedbackHtml +
+      feedbackHtml +
+      `<button type="button" class="jp-quiz-next"${nextDisabled ? ' disabled' : ''}>${nextLabel}</button>`;
+  }
+
+  container.innerHTML =
+    `<div class="jp-widget jp-quiz jp-theme-${esc(themeClass)}" role="region" aria-label="Quiz">` +
+    `<div class="jp-quiz-title-row"><p class="jp-quiz-title">${esc(quiz_data.title)}</p></div>` +
+    body +
+    '</div>';
+
+  applyWidgetVisualOverrides(container, vars, embed_settings.auto_height);
+
+  // A broken/slow image must never block the timer or an option's
+  // clickability — both are already independent of image load state. On
+  // error, collapse the element entirely rather than leaving a broken-image
+  // icon sitting in the space reserved for it.
+  container.querySelectorAll('.jp-quiz-question-image, .jp-quiz-option-image').forEach(img => {
+    img.addEventListener('error', () => { img.style.display = 'none'; }, { once: true });
+  });
+
+  const optionsLocked = phase !== 'blocked' && phase !== 'results' && (submitting || checkingAnswer || !!answerFeedback);
+  container.querySelectorAll('.jp-quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const optionId = Number(btn.dataset.id);
+      if (!optionsLocked && Number.isFinite(optionId) && onToggleOption) onToggleOption(optionId);
+    });
+  });
+
+  const nextBtn = container.querySelector('.jp-quiz-next');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const disabled = checkingAnswer || submitting || (!answerFeedback && !canAdvance);
+      if (!disabled && onNext) onNext();
     });
   }
 }

@@ -31,6 +31,16 @@
   padding: 0;
 }
 
+/* auto_height: false (dashboard setting) — caps the widget instead of
+   letting it grow to fit its content, with an internal scroll for the rest.
+   --jp-max-height is a normal CSS custom property, so it goes through the
+   same vars override path as everything else (e.g. vars: { '--jp-max-height': '600px' }). */
+.jp-widget.jp-fixed-height {
+  max-height: var(--jp-max-height, 480px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ── Themes ── */
 
 /* Neutral dark — matches the Jampolls app's own dark aesthetic */
@@ -279,6 +289,32 @@
 .jp-submit:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+/* ── Cover screen (startTrigger: 'cover') ── */
+.jp-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 20px;
+}
+
+.jp-cover-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 28px;
+  background: var(--jp-primary);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.jp-cover-btn:hover {
+  transform: translateY(-1px);
 }
 
 /* ── Loading ── */

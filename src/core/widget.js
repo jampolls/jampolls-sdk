@@ -102,8 +102,17 @@ export class PollWidget {
     this._sse.start();
   }
 
+  /**
+   * opts.layout (host page) overrides embed_settings.layout (dashboard
+   * default) overrides 'auto' — the same precedence opts.theme already has
+   * over embed_settings.theme.
+   */
+  _effectiveLayout() {
+    return this.opts.layout || this.data?.embed_settings?.layout || 'auto';
+  }
+
   _getLayoutClass() {
-    const layout = this.opts.layout || 'auto';
+    const layout = this._effectiveLayout();
     if (layout === 'horizontal') return 'jp-layout-horizontal';
     if (layout === 'auto' && this._isHorizontal) return 'jp-layout-horizontal';
     return '';
@@ -114,8 +123,12 @@ export class PollWidget {
     if (el) el.classList.toggle('jp-layout-horizontal', this._getLayoutClass() === 'jp-layout-horizontal');
   }
 
+  // Only meaningful once `this.data` is loaded (the effective layout depends
+  // on embed_settings), so this runs after envelope apply, not from init().
+  // Guarded so a refresh()/remount doesn't spin up a second observer.
   _setupLayoutObserver() {
-    if ((this.opts.layout || 'auto') !== 'auto') return;
+    if (this._ro || this._destroyed) return;
+    if (this._effectiveLayout() !== 'auto') return;
     if (typeof ResizeObserver === 'undefined') return;
     this._ro = new ResizeObserver(entries => {
       const width = entries[0]?.contentRect?.width;
@@ -129,7 +142,6 @@ export class PollWidget {
 
   init(envelope) {
     renderLoading(this.container);
-    this._setupLayoutObserver();
     if (envelope) {
       this._applyEnvelope(envelope);
     } else {
@@ -150,6 +162,7 @@ export class PollWidget {
     this.lastFetchedAt = null;
     this.feedback = null;
     this._saveCache();
+    this._setupLayoutObserver();
     this._render();
     this._startSSE();
     if (this.opts.onLoad) this.opts.onLoad(this.data);
@@ -173,6 +186,7 @@ export class PollWidget {
         this.data = cached.data;
         this.isStale = true;
         this.lastFetchedAt = cached.lastFetchedAt;
+        this._setupLayoutObserver();
         this._render();
         this._startSSE();
         if (this.opts.onLoad) this.opts.onLoad(this.data);
@@ -300,7 +314,7 @@ export class PollWidget {
       onOptionClick: id => this._vote(id),
       onSubmit: () => this._submitMultipleVotes(),
       themeOverride: this.opts.theme,
-      vars: this.opts.vars,
+      vars: { ...(this.data?.embed_settings?.vars || {}), ...(this.opts.vars || {}) },
       layoutClass: this._getLayoutClass(),
       isStale: this.isStale,
       lastFetchedAt: this.lastFetchedAt,

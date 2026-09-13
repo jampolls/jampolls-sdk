@@ -122,7 +122,7 @@ export class RatingWidget {
       onCommentChange: value => this._setComment(value),
       onSubmit: () => this._submitRating(),
       themeOverride: this.opts.theme,
-      vars: this.opts.vars,
+      vars: { ...(this.data?.embed_settings?.vars || {}), ...(this.opts.vars || {}) },
     });
   }
 

@@ -38,6 +38,49 @@ export interface WidgetOptions {
   onToolChanged?: (payload: ToolSwitchPayload) => void;
   /** Called when a network or API error occurs. */
   onError?: (error: Error) => void;
+  /**
+   * Controls when the widget actually mounts.
+   * - `'auto'` (default) — mounts immediately, unchanged from every version before this option existed.
+   * - `'cover'` — shows a small branded start screen in the container; nothing is fetched
+   *   or rendered until the visitor clicks it.
+   * - `'manual'` — mounts nothing until your own code calls `.start()` on the instance
+   *   `embed()` returns. Use this to drive the widget from your own "Begin" button.
+   * @default 'auto'
+   */
+  startTrigger?: 'auto' | 'cover' | 'manual';
+  /** Button label shown in `'cover'` mode. @default 'Start' */
+  startLabel?: string;
+  /**
+   * Quiz widget only. Your own opaque identifier for this respondent (e.g. your
+   * logged-in user's ID), so a completed attempt can be matched back to your own
+   * records via the completion webhook. Put an ID here, not a name or email.
+   */
+  externalRespondentId?: string;
+  /**
+   * Quiz widget only. Overrides the embed's dashboard-configured `reveal_score`
+   * setting. `false` shows a plain completion message instead of the score,
+   * pass/fail badge, and correct-answer count on the results screen.
+   */
+  revealScore?: boolean;
+  /**
+   * Quiz widget only. When the embed's dashboard-configured `instant_feedback` is on,
+   * this can turn it off for this page (`false`) — it can NOT force instant feedback
+   * on for an embed where the owner has it off; the check endpoint itself 403s in
+   * that case, so the SDK never even tries. When on, "Next" shows a correct/incorrect
+   * banner right after locking in an answer, and becomes "Continue" for a second tap.
+   */
+  instantFeedback?: boolean;
+  /**
+   * Quiz widget only. Overrides the embed's dashboard-configured `pass_threshold`.
+   * 0.0–1.0, or `null` to hide the pass/fail badge entirely and show only the score.
+   */
+  passThreshold?: number | null;
+  /** Quiz widget only. Called once, when the first question is shown (not called if the visitor is blocked by retake policy). */
+  onQuizStart?: () => void;
+  /** Quiz widget only. Called each time an answer is locked in — when moving off a question, not on every option click. */
+  onAnswerLocked?: (event: { questionId: number; selectedOptionIds: number[]; timeSpentS: number }) => void;
+  /** Quiz widget only. Called after the final submission, with the full score breakdown. */
+  onQuizComplete?: (result: QuizResults) => void;
 }
 
 export interface PollOption {
@@ -116,6 +159,69 @@ export interface EmbedSettings {
   theme: 'auto' | 'light' | 'dark' | 'jampolls';
   show_results: boolean;
   show_branding: boolean;
+  /** Quiz embeds (multi-embed model) only — absent for poll/rating/survey. */
+  auto_height?: boolean;
+  retake_policy?: 'unlimited' | 'once' | 'max_attempts';
+  max_attempts?: number | null;
+  reveal_score?: boolean;
+  instant_feedback?: boolean;
+  /** 0.0–1.0, or null for no pass/fail line. */
+  pass_threshold?: number | null;
+  /** null = use each question's own time_limit. */
+  per_question_seconds?: number | null;
+  start_trigger?: 'auto' | 'cover' | 'manual';
+}
+
+export interface QuizOption {
+  id: number;
+  text: string;
+  image: string | null;
+  order: number;
+}
+
+export interface QuizQuestion {
+  id: number;
+  text: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+  image: string | null;
+  order: number;
+  points_value: number;
+  /** Seconds, or null for no per-question timer. */
+  time_limit: number | null;
+  options: QuizOption[];
+}
+
+export interface QuizData {
+  tool_type: 'quiz';
+  poll_data: null;
+  rating_data: null;
+  survey_data: null;
+  quiz_data: {
+    id: number;
+    title: string;
+    description: string;
+    /** Needed to POST to the submit endpoint — shared with native quiz-taking. */
+    slug: string;
+    display_mode: string;
+    randomize_questions: boolean;
+    points_per_question: number;
+    time_limit_per_question: number | null;
+    is_active: boolean;
+    question_count: number;
+    total_points_possible: number;
+    estimated_seconds: number;
+    questions: QuizQuestion[];
+  } | null;
+  embed_settings: EmbedSettings;
+}
+
+export interface QuizResults {
+  id: number;
+  total_score: number;
+  percentage_score: number;
+  correct_answers: number;
+  total_questions: number;
+  total_time_spent: number | null;
 }
 
 export interface SurveyQuestion {
@@ -145,12 +251,15 @@ export interface SurveySection {
   questions: SurveyQuestion[];
 }
 
-export type EmbedToolData = PollData | RatingData | SurveyData;
+export type EmbedToolData = PollData | RatingData | SurveyData | QuizData;
 
 export interface ToolSwitchPayload {
   tool_type: 'poll' | 'rating' | 'survey';
   snapshot: Record<string, unknown>;
 }
+
+/** Passed to `onSubmit` for the quiz widget. `onSubmit` for rating/survey still receives `Record<string, unknown>`. */
+export type QuizSubmitEvent = QuizResults;
 
 export interface SingleVoteEvent {
   optionId: number;
@@ -172,6 +281,14 @@ export interface JampollsWidgetInstance {
   destroy(): void;
 }
 
+/** Returned by `embed()` when `startTrigger` is `'cover'` or `'manual'`, before the real widget has mounted. */
+export interface DeferredWidgetInstance {
+  /** Mount the real widget now. No-op if already started or destroyed. */
+  start(): void;
+  /** Destroy and clear the container. Before `start()`, this just clears the cover screen (if any). */
+  destroy(): void;
+}
+
 declare const JamPolls: {
   /**
    * Embed a Jampolls poll into a container.
@@ -179,10 +296,10 @@ declare const JamPolls: {
    * @param target - CSS selector string or HTMLElement.
    * @param opts - Optional configuration.
    */
-  embed(embedKey: string, target: string | HTMLElement, opts?: WidgetOptions): JampollsWidgetInstance | null;
+  embed(embedKey: string, target: string | HTMLElement, opts?: WidgetOptions): JampollsWidgetInstance | DeferredWidgetInstance | null;
 
   /** Get the widget instance currently attached to a container. */
-  getWidget(target: string | HTMLElement): JampollsWidgetInstance | null;
+  getWidget(target: string | HTMLElement): JampollsWidgetInstance | DeferredWidgetInstance | null;
 
   /** Destroy and remove the widget from a container. */
   removeWidget(target: string | HTMLElement): void;

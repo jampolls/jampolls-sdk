@@ -1,10 +1,12 @@
 import '../styles/widget.css';
+import '../styles/quiz.css';
 import { JampollsApi, resolveBaseUrl } from './api.js';
 import { getVoterId } from './voter.js';
 import { PollWidget } from './widget.js';
 import { RatingWidget } from './rating.js';
 import { SurveyWidget } from './survey.js';
-import { renderLoading, renderError } from './renderer.js';
+import { QuizWidget } from './quiz.js';
+import { renderLoading, renderError, renderCoverScreen } from './renderer.js';
 
 const _registry = new WeakMap();
 const _context = new WeakMap();
@@ -15,6 +17,8 @@ function createWidget(toolType, embedKey, container, opts) {
       return new RatingWidget(embedKey, container, opts);
     case 'survey':
       return new SurveyWidget(embedKey, container, opts);
+    case 'quiz':
+      return new QuizWidget(embedKey, container, opts);
     default:
       return new PollWidget(embedKey, container, opts);
   }
@@ -63,6 +67,34 @@ async function mountWidget(embedKey, container, opts) {
   }
 }
 
+// startTrigger: 'cover' | 'manual' — stands in for the real widget in
+// `_registry` until the visitor (cover) or host page (manual) decides to
+// start. Mirrors the destroy()/container-ownership contract every real
+// widget class follows, so removeWidget() works the same regardless of
+// whether anything has actually mounted yet.
+class DeferredWidgetHandle {
+  constructor(embedKey, container, opts) {
+    this.embedKey = embedKey;
+    this.container = container;
+    this.opts = opts;
+    this._started = false;
+    this._destroyed = false;
+  }
+
+  start() {
+    if (this._started || this._destroyed) return;
+    this._started = true;
+    mountWidget(this.embedKey, this.container, this.opts).then(widget => {
+      if (widget && !this._destroyed) _registry.set(this.container, widget);
+    });
+  }
+
+  destroy() {
+    this._destroyed = true;
+    if (!this._started) this.container.innerHTML = '';
+  }
+}
+
 function remountWidget(container) {
   const ctx = _context.get(container);
   if (!ctx) return;
@@ -78,11 +110,16 @@ function remountWidget(container) {
 
 const JamPolls = {
   /**
-   * Embed a Jampolls widget (poll, rating, or survey) into a container element.
+   * Embed a Jampolls widget (poll, rating, survey, or quiz) into a container element.
    * @param {string} embedKey - Your embed key from the Jampolls dashboard.
    * @param {string|HTMLElement} target - CSS selector or DOM element to embed into.
    * @param {Object} [opts] - Optional configuration.
-   * @returns {PollWidget|RatingWidget|SurveyWidget|null}
+   * @param {'auto'|'cover'|'manual'} [opts.startTrigger] - 'auto' (default) mounts
+   *   immediately, matching every version before this option existed. 'cover' shows
+   *   a small branded start screen and mounts on click. 'manual' mounts nothing
+   *   until the host page calls `.start()` on the instance this method returns.
+   * @param {string} [opts.startLabel] - Button label for 'cover' mode. Defaults to 'Start'.
+   * @returns {PollWidget|RatingWidget|SurveyWidget|DeferredWidgetHandle|null}
    */
   embed(embedKey, target, opts) {
     const container = typeof target === 'string' ? document.querySelector(target) : target;
@@ -96,8 +133,19 @@ const JamPolls = {
     const resolvedOpts = opts || {};
     _context.set(container, { embedKey, opts: resolvedOpts });
 
-    mountWidget(embedKey, container, resolvedOpts);
-    return _registry.get(container) || null;
+    const trigger = resolvedOpts.startTrigger || 'auto';
+    if (trigger === 'auto') {
+      mountWidget(embedKey, container, resolvedOpts);
+      return _registry.get(container) || null;
+    }
+
+    const handle = new DeferredWidgetHandle(embedKey, container, resolvedOpts);
+    _registry.set(container, handle);
+    if (trigger === 'cover') {
+      renderCoverScreen(container, resolvedOpts, () => handle.start());
+    }
+    // 'manual': nothing rendered — the host page calls handle.start() itself.
+    return handle;
   },
 
   /**

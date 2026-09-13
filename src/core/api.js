@@ -44,6 +44,87 @@ export class JampollsApi {
     const res = await fetch(`${this.baseUrl}/api/v1/widgets/${embedKey}/fetch/?src=embed`, {
       headers: { 'X-SDK-Version': SDK_VERSION },
     });
+    // A 404 here means embedKey isn't a legacy single-slot embed — quiz embeds
+    // (and any future multi-embed-only tool) only ever exist in the newer
+    // per-instance Embed table, so fall back there before giving up. Both
+    // endpoints return the same envelope shape (tool_type/poll_data/rating_data/
+    // survey_data/embed_settings); the multi-embed one adds quiz_data.
+    if (res.status === 404) return this.fetchEmbed(embedKey);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
+  }
+
+  async fetchEmbed(embedKey) {
+    const res = await fetch(`${this.baseUrl}/api/v1/embeds/public/${embedKey}/?src=embed`, {
+      headers: { 'X-SDK-Version': SDK_VERSION },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
+  }
+
+  async fetchQuizAttemptStatus(embedKey, { externalRespondentId, anonymousId } = {}) {
+    const params = new URLSearchParams();
+    if (externalRespondentId) params.set('external_respondent_id', externalRespondentId);
+    if (anonymousId) params.set('anonymous_id', anonymousId);
+    const qs = params.toString();
+    const res = await fetch(
+      `${this.baseUrl}/api/v1/embeds/public/${embedKey}/quiz-attempt-status/${qs ? `?${qs}` : ''}`,
+      { headers: { 'X-SDK-Version': SDK_VERSION } }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
+  }
+
+  /**
+   * Instant-feedback check for one question (only meaningful when the embed's
+   * instant_feedback setting is on — the endpoint 403s otherwise). Never
+   * returns the answer key, just whether the given selection was correct.
+   */
+  async checkQuizAnswer(embedKey, { questionId, selectedOptionIds, externalRespondentId }) {
+    const anonymousId = await getVoterId(this.baseUrl);
+    const res = await fetch(`${this.baseUrl}/api/v1/embeds/public/${embedKey}/quiz-question-check/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-SDK-Version': SDK_VERSION },
+      body: JSON.stringify({
+        question_id: questionId,
+        option_ids: selectedOptionIds,
+        anonymous_id: anonymousId,
+        external_respondent_id: externalRespondentId || '',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(getApiError(data, res.status));
+    return unwrapApiResponse(data, res.status);
+  }
+
+  /**
+   * Submit a completed (or partially completed) quiz attempt.
+   * @param {string} quizSlug - `quiz_data.slug` from the fetch envelope. This
+   *   endpoint is shared with native (non-embed) quiz-taking, hence slug-keyed
+   *   rather than embed_key-keyed.
+   * @param {Object} opts
+   * @param {string} opts.embedKey - Links the response back to this embed for
+   *   retake-policy enforcement and the completion webhook.
+   * @param {Array<{question: number, selected_options: Array<{option: number}>, time_spent?: number}>} opts.answers
+   * @param {number} [opts.totalTimeSpent] - Seconds, whole attempt.
+   * @param {string} [opts.externalRespondentId]
+   */
+  async submitQuiz(quizSlug, { embedKey, answers, totalTimeSpent, externalRespondentId }) {
+    const anonymousId = await getVoterId(this.baseUrl);
+    const res = await fetch(`${this.baseUrl}/api/v1/quizzes/${quizSlug}/submit/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-SDK-Version': SDK_VERSION },
+      body: JSON.stringify({
+        answers,
+        anonymous_id: anonymousId,
+        total_time_spent: totalTimeSpent,
+        external_respondent_id: externalRespondentId || '',
+        embed_key: embedKey,
+      }),
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(getApiError(data, res.status));
     return unwrapApiResponse(data, res.status);

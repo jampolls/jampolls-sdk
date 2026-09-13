@@ -1,0 +1,387 @@
+/* Quiz tool tokens + motion primitives — scoped to .jp-widget.jp-quiz.
+   Values are ported 1:1 from jampollsclub's live trivia UI (QuizOptionButton,
+   QuizAnswerBreakdownList, WizardProgressBar, TriviaQuiz's countdown badge) so
+   an embedded quiz reads as the same product, not a reinterpretation. */
+
+.jp-widget.jp-quiz {
+  /* Option button (unselected / selected) */
+  --jp-quiz-option-bg: #2c2c2e;
+  --jp-quiz-option-border: #38383a;
+  --jp-quiz-option-border-hover: #4a4a4c;
+  --jp-quiz-option-text: #adadae;
+  --jp-quiz-option-selected-bg: #113d42;
+  --jp-quiz-option-selected-border: #0f5157;
+  --jp-quiz-option-selected-text: #00dcec;
+  --jp-quiz-indicator-border: #676768;
+  --jp-quiz-indicator-selected-bg: #0d656c;
+
+  /* Answer-reveal tints (correct / wrong bars) */
+  --jp-quiz-correct: #84cc16;
+  --jp-quiz-correct-track: rgba(132, 204, 22, 0.16);
+  --jp-quiz-correct-border: rgba(132, 204, 22, 0.4);
+  --jp-quiz-wrong: #fe5751;
+  --jp-quiz-wrong-track: rgba(254, 87, 81, 0.12);
+  --jp-quiz-wrong-border: rgba(254, 87, 81, 0.4);
+
+  /* Progress bar (n-segment wizard bar) */
+  --jp-quiz-progress-track: #2c2c2e;
+  --jp-quiz-progress-fill: linear-gradient(90deg, #ff5398, #ffa946);
+
+  /* Countdown badge — normal vs. urgent (<=10s remaining, absolute, not a
+     percentage of question duration) */
+  --jp-quiz-timer-bg: #443320;
+  --jp-quiz-timer-text: #ffa946;
+  --jp-quiz-timer-urgent-bg: rgba(127, 29, 29, 0.3);
+  --jp-quiz-timer-urgent-text: #ef4444;
+
+  /* Surfaces / muted text shared by waiting, locked and results states */
+  --jp-quiz-card-bg: #212123;
+  --jp-quiz-muted-text: #969697;
+
+  /* Motion durations — kept as custom properties so JS-driven timing
+     (see quizTokens.js) and the CSS transitions below can't drift apart */
+  --jp-quiz-motion-enter-ms: 350ms;
+  --jp-quiz-motion-bar-ms: 600ms;
+}
+
+/* ── Motion primitives ──
+   No framer-motion in a vanilla-JS SDK: these are the CSS-only equivalents
+   of the app's entrance/bar-fill animations. aug.3 applies them as plain
+   classes rather than reimplementing the easing/duration per element. */
+
+@keyframes jp-quiz-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.jp-quiz-motion-enter {
+  animation: jp-quiz-enter var(--jp-quiz-motion-enter-ms) ease-out;
+}
+
+/* Applied to a bar whose width is driven by a `--pct` custom property set
+   from JS (`el.style.setProperty('--pct', ...)`), matching the app's
+   width: 0 -> pct% reveal-bar animation. */
+.jp-quiz-motion-bar-fill {
+  width: var(--pct, 0%);
+  transition: width var(--jp-quiz-motion-bar-ms) ease-out;
+}
+
+/* Any numeric readout that changes on a timer (countdown, live score, live
+   answer count) — keeps digit width stable so the readout doesn't jitter. */
+.jp-quiz-num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-quiz-motion-enter {
+    animation: none;
+  }
+  .jp-quiz-motion-bar-fill {
+    transition: none;
+  }
+}
+
+/* ── Layout ── */
+
+.jp-quiz-title-row {
+  padding: 16px 16px 0;
+}
+
+.jp-quiz-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--jp-quiz-muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.jp-quiz-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px 0;
+}
+
+.jp-quiz-progress-segment {
+  height: 6px;
+  flex: 1;
+  border-radius: 999px;
+  background: var(--jp-quiz-progress-track);
+}
+
+.jp-quiz-progress-segment-filled {
+  background: var(--jp-quiz-progress-fill);
+}
+
+.jp-quiz-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.jp-quiz-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--jp-text-muted);
+}
+
+.jp-quiz-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--jp-quiz-timer-bg);
+  color: var(--jp-quiz-timer-text);
+}
+
+.jp-quiz-timer-urgent {
+  background: var(--jp-quiz-timer-urgent-bg);
+  color: var(--jp-quiz-timer-urgent-text);
+}
+
+.jp-quiz-question {
+  padding: 16px 16px 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--jp-text);
+}
+
+.jp-quiz-question-image {
+  display: block;
+  width: calc(100% - 32px);
+  /* No width/height comes from the API, so the aspect-ratio box is what
+     reserves the space up front — the image loading in never shifts anything
+     below it, regardless of the source file's actual dimensions. */
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
+  object-fit: cover;
+  margin: 12px 16px 0;
+  border-radius: var(--jp-option-radius);
+  background: var(--jp-quiz-option-bg);
+}
+
+/* ── Options ── */
+
+.jp-quiz-options {
+  padding: 14px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jp-quiz-options-true-false {
+  flex-direction: row;
+}
+
+.jp-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  background: var(--jp-quiz-option-bg);
+  border: 1.5px solid var(--jp-quiz-option-border);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--jp-quiz-option-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+/* An option carrying a thumbnail needs room to grow, so it drops the fixed
+   row height in favor of the larger, softer card shape the app itself uses
+   whenever an option has media. */
+.jp-quiz-option-has-media {
+  height: auto;
+  padding: 10px;
+  border-radius: 20px;
+}
+
+.jp-quiz-option:hover:not(:disabled) {
+  border-color: var(--jp-quiz-option-border-hover);
+}
+
+.jp-quiz-option:disabled {
+  cursor: default;
+}
+
+.jp-quiz-option-toggle {
+  flex: 1;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.jp-quiz-option-selected {
+  background: var(--jp-quiz-option-selected-bg);
+  border-color: var(--jp-quiz-option-selected-border);
+  color: var(--jp-quiz-option-selected-text);
+}
+
+.jp-quiz-option-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--jp-quiz-indicator-border);
+  color: #fff;
+}
+
+.jp-quiz-indicator-round {
+  border-radius: 999px;
+}
+
+.jp-quiz-indicator-square {
+  border-radius: 8px;
+}
+
+.jp-quiz-option-indicator-selected {
+  border-color: var(--jp-quiz-indicator-selected-bg);
+  background: var(--jp-quiz-indicator-selected-bg);
+}
+
+.jp-quiz-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.jp-quiz-option-image {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--jp-quiz-progress-track);
+}
+
+.jp-quiz-option-text {
+  flex: 1;
+}
+
+.jp-quiz-answer-feedback {
+  margin: 14px 16px 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.jp-quiz-answer-feedback-correct {
+  color: var(--jp-quiz-correct);
+  background: var(--jp-quiz-correct-track);
+}
+
+.jp-quiz-answer-feedback-wrong {
+  color: var(--jp-quiz-wrong);
+  background: var(--jp-quiz-wrong-track);
+}
+
+.jp-quiz-next {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 16px 16px 16px;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: var(--jp-primary);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  transition: opacity 0.15s ease;
+}
+
+.jp-quiz-next:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ── Blocked (already completed) ── */
+
+.jp-quiz-blocked {
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.jp-quiz-blocked-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--jp-text);
+}
+
+.jp-quiz-blocked-detail {
+  margin: 0;
+  font-size: 13px;
+  color: var(--jp-quiz-muted-text);
+}
+
+/* ── Results ── */
+
+.jp-quiz-results {
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.jp-quiz-results-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--jp-text);
+}
+
+.jp-quiz-score {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--jp-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.jp-quiz-pass-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.jp-quiz-pass {
+  color: var(--jp-quiz-correct);
+  background: var(--jp-quiz-correct-track);
+}
+
+.jp-quiz-fail {
+  color: var(--jp-quiz-wrong);
+  background: var(--jp-quiz-wrong-track);
+}
+
+.jp-quiz-results-detail {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--jp-quiz-muted-text);
+}

@@ -115,6 +115,8 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
     'max-width':    '100%',
   },
   apiUrl: 'http://localhost:8000', // optional, local development only
+  startTrigger: 'cover',    // 'auto' (default) | 'cover' | 'manual'
+  startLabel: 'Start Quiz', // 'cover' mode button label
   onLoad:  (data)  => console.log(data.tool_type, data),
   onVote:  (event) => console.log(event),           // poll only
   onSubmit:(event) => console.log(event),           // rating / survey
@@ -130,13 +132,44 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
 | `vars` | `Record<string, string>` | CSS custom property overrides applied directly to the widget. |
 | `apiUrl` | `string` | API origin override for local development. Defaults to `https://hub.jampolls.com`. |
 | `env` | `'production' \| 'sandbox'` | Target environment copy. Defaults to `'production'`. Ignored if `apiUrl` is also set. |
-| `onLoad` | `(data: EmbedToolData) => void` | Fired when tool data loads. Check `data.tool_type` (`poll`, `rating`, or `survey`). |
+| `startTrigger` | `'auto' \| 'cover' \| 'manual'` | Controls when the widget mounts. `auto` (default) mounts immediately. `cover` shows a small branded start screen and mounts on click — nothing is fetched until then. `manual` mounts nothing until you call `.start()` on the instance `embed()` returns. |
+| `startLabel` | `string` | Button label for `'cover'` mode. Defaults to `'Start'`. |
+| `onLoad` | `(data: EmbedToolData) => void` | Fired when tool data loads. Check `data.tool_type` (`poll`, `rating`, `survey`, or `quiz`). |
 | `onVote` | `(event: VoteEvent) => void` | Poll only — fired after a vote is submitted or removed. |
 | `onSubmit` | `(event) => void` | Rating / survey — fired after a successful submission. |
 | `onToolChanged` | `(payload) => void` | Fired when the dashboard owner switches the active tool (via SSE). Widget re-inits automatically. |
 | `onError` | `(error: Error) => void` | Fired on network or API errors. |
 
 > **Note:** `show_results`, `show_branding`, and poll voting rules are controlled by the owner from their Jampolls dashboard — they are not developer options.
+
+`theme`, `layout`, and `vars` all follow the same precedence: your `opts` value, if you pass one, overrides whatever the owner configured on the dashboard — otherwise the dashboard's value applies automatically, live, with no snippet reissue needed if it's changed later. `layout` and `vars` used to be baked into the embed snippet at setup time and never re-fetched; they're now served fresh on every load, the same way `theme` already worked.
+
+The dashboard's `auto_height` setting (default: on) is the one exception with no `opts` override — when turned off, the widget caps itself at `--jp-max-height` (default `480px`, itself overridable via `vars`) with an internal scrollbar instead of growing to fit its content.
+
+### Quiz options
+
+```javascript
+JamPolls.embed('YOUR_EMBED_KEY', '#container', {
+  externalRespondentId: currentUser.id,  // your own ID for this respondent — passed straight through to the completion webhook
+  revealScore: true,       // overrides the embed's dashboard-configured reveal_score
+  passThreshold: 0.7,      // overrides the embed's dashboard-configured pass_threshold (0.0–1.0, or null to hide the pass/fail badge)
+  onQuizStart:    ()      => console.log('quiz started'),
+  onAnswerLocked: (event) => console.log(event.questionId, event.selectedOptionIds, event.timeSpentS),
+  onQuizComplete: (result) => console.log(result.percentage_score, result.correct_answers),
+});
+```
+
+| Option | Type | Description |
+|---|---|---|
+| `externalRespondentId` | `string` | Your own opaque identifier for this respondent (e.g. your logged-in user's ID), so a completed attempt can be matched back to your own records via the completion webhook. Put an ID here, not a name or email. |
+| `revealScore` | `boolean` | Overrides the embed's dashboard-configured `reveal_score`. `false` shows a plain completion message instead of the score. |
+| `instantFeedback` | `boolean` | Can turn off the embed's dashboard-configured `instant_feedback` for this page (`false`) — can't force it on where the owner has it off (the check itself 403s server-side, so the SDK never tries). When on, shows a correct/incorrect banner after "Next" locks in an answer; the button becomes "Continue" for a second tap. |
+| `passThreshold` | `number \| null` | Overrides the embed's dashboard-configured `pass_threshold`. `0.0`–`1.0`, or `null` to hide the pass/fail badge and show only the score. |
+| `onQuizStart` | `() => void` | Fired once, when the first question is shown. Not fired if the visitor is blocked by the embed's retake policy. |
+| `onAnswerLocked` | `(event: { questionId, selectedOptionIds, timeSpentS }) => void` | Fired each time an answer is locked in — when moving off a question, not on every option click. |
+| `onQuizComplete` | `(result: QuizResults) => void` | Fired after the final submission, with the full score breakdown (`percentage_score`, `correct_answers`, `total_questions`, `total_score`, `total_time_spent`). |
+
+> **Note:** retake policy (`allow_retake` / `max_attempts`) and per-question time limits are controlled by the owner from their Jampolls dashboard — they are not developer options.
 
 ---
 
@@ -147,10 +180,13 @@ JamPolls.embed('YOUR_EMBED_KEY', '#container', {
 | `poll` | Vote on options, live results via SSE | `POST /widgets/{key}/vote/` |
 | `rating` | Stars, numbers, or emojis + optional comment | `POST /widgets/{key}/submit/` |
 | `survey` | Text, choice, likert/rating, dropdown questions | `POST /widgets/{key}/submit/` |
+| `quiz` | Self-paced, forward-only question flow — single/multiple choice, true/false, per-question timer, results with score/pass-fail | `POST /quizzes/{slug}/submit/` |
 
 Survey display modes: `all_questions`, `one_by_one`, and `auto_advance` (auto-advances 300 ms after a single-choice or rating answer in step mode).
 
 Choice questions (`single_choice`, `multiple_choice`, `dropdown`) support an owner-configured "Other" write-in option and, for `multiple_choice`, a minimum/maximum number of selections — both are enforced client-side before submit and validated again by the API.
+
+Quiz is forward-only (no back button): "Next" enables once the current question is answered, or once its timer expires — it never auto-advances. All answers submit together in one request when the last question is left, unless `instantFeedback` is on (dashboard setting, see Quiz options below) — then each "Next" checks that one answer via `POST /embeds/public/{key}/quiz-question-check/` first (never returning the answer key, just correct/incorrect) and becomes "Continue" for a second tap. A returning visitor blocked by the embed's retake policy sees a completed-state screen instead of the first question. Quiz embeds resolve through `GET /embeds/public/{key}/`, a newer endpoint the SDK falls back to automatically when `{key}` isn't a legacy single-slot embed — no configuration needed.
 
 ---
 
@@ -207,6 +243,20 @@ widget.refresh(); // re-fetch and re-render
 widget.destroy(); // unmount and clear
 ```
 
+With `startTrigger: 'cover'` or `'manual'`, `embed()` instead returns a deferred instance:
+
+```javascript
+const deferred = JamPolls.embed('KEY', '#container', { startTrigger: 'manual' });
+
+document.querySelector('#begin-button').addEventListener('click', () => {
+  deferred.start();   // mounts the real widget now
+});
+
+deferred.destroy();   // safe to call before or after start()
+```
+
+`getWidget()` returns whichever of the two is currently attached to the container — the deferred instance before `start()`, the real widget after.
+
 ---
 
 ## TypeScript
@@ -220,6 +270,8 @@ import JamPolls, {
   PollData,
   RatingData,
   SurveyData,
+  QuizData,
+  QuizResults,
   VoteEvent,
 } from '@jampolls/sdk';
 ```
