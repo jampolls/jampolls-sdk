@@ -21,6 +21,10 @@ export class QuizWidget {
       phase: 'checking', // checking -> blocked | question -> results
       currentIndex: 0,
       selected: [],
+      // matching only — [{prompt, option}, ...] wire format for submit.
+      selectedMatches: [],
+      // Transient tap-to-select chip highlight (UI-only; not submitted).
+      selectedMatchOptionId: null,
       attemptStatus: null,
       results: null,
       feedback: null,
@@ -32,6 +36,7 @@ export class QuizWidget {
     this.checkingAnswer = false;
     this._destroyed = false;
     this._timerHandle = null;
+    this._matchDragActive = false;
     this._attemptStartedAtMs = null;
     this._startFired = false;
   }
@@ -75,6 +80,8 @@ export class QuizWidget {
       phase: 'checking',
       currentIndex: 0,
       selected: [],
+      selectedMatches: [],
+      selectedMatchOptionId: null,
       attemptStatus: null,
       results: null,
       feedback: null,
@@ -122,8 +129,10 @@ export class QuizWidget {
     const question = this._currentQuestion();
     const previouslyAnswered = question ? this.answers.get(question.id) : null;
     this.state.selected = previouslyAnswered
-      ? previouslyAnswered.selected_options.map(o => o.option)
+      ? (previouslyAnswered.selected_options || []).map(o => o.option)
       : [];
+    this.state.selectedMatches = previouslyAnswered ? previouslyAnswered.matches || [] : [];
+    this.state.selectedMatchOptionId = null;
     this.state.answerFeedback = null;
     this.state.questionStartedAtMs = Date.now();
 
@@ -132,6 +141,14 @@ export class QuizWidget {
 
     if (limitS != null) {
       this._timerHandle = setInterval(() => {
+        // Full re-render wipes the DOM — skip while a chip is mid-drag so the
+        // floating ghost and pointer listeners stay intact. Timer display
+        // updates on the next idle tick after drop.
+        if (this._matchDragActive) {
+          const elapsed = Date.now() - this.state.questionStartedAtMs;
+          this.state.timeRemainingMs = Math.max(0, limitS * 1000 - elapsed);
+          return;
+        }
         const elapsed = Date.now() - this.state.questionStartedAtMs;
         const remaining = Math.max(0, limitS * 1000 - elapsed);
         this.state.timeRemainingMs = remaining;
@@ -165,7 +182,40 @@ export class QuizWidget {
     this._render();
   }
 
+  // matching only — direct assignment: prompt ↔ option. Same reassignment
+  // semantics as the player-preview: one option per prompt, one prompt per
+  // option; dropping onto a filled slot overwrites; eject clears the pair.
+  _setMatchPair(promptId, optionId) {
+    if (this.state.phase !== 'question') return;
+    if (promptId == null || optionId == null) return;
+    const next = this.state.selectedMatches.filter(
+      m => m.prompt !== promptId && m.option !== optionId
+    );
+    next.push({ prompt: promptId, option: optionId });
+    this.state.selectedMatches = next;
+    this.state.selectedMatchOptionId = null;
+    this._render();
+  }
+
+  _clearMatchPair(promptId) {
+    if (this.state.phase !== 'question') return;
+    this.state.selectedMatches = this.state.selectedMatches.filter(m => m.prompt !== promptId);
+    this._render();
+  }
+
+  _setSelectedMatchOption(optionId) {
+    if (this.state.phase !== 'question') return;
+    this.state.selectedMatchOptionId =
+      this.state.selectedMatchOptionId === optionId ? null : optionId;
+    this._render();
+  }
+
   _isAnswered() {
+    const question = this._currentQuestion();
+    if (question?.question_type === 'matching') {
+      const promptCount = (question.prompts || []).length;
+      return promptCount > 0 && this.state.selectedMatches.length === promptCount;
+    }
     return this.state.selected.length > 0;
   }
 
@@ -179,8 +229,20 @@ export class QuizWidget {
 
   _recordCurrentAnswer() {
     const question = this._currentQuestion();
-    if (!question || this.state.selected.length === 0) return;
+    if (!question) return;
     const timeSpentS = Math.max(0, Math.round((Date.now() - this.state.questionStartedAtMs) / 1000));
+
+    if (question.question_type === 'matching') {
+      if (this.state.selectedMatches.length === 0) return;
+      const matches = this.state.selectedMatches.map(m => ({ prompt: m.prompt, option: m.option }));
+      this.answers.set(question.id, { question: question.id, matches, time_spent: timeSpentS });
+      if (this.opts.onAnswerLocked) {
+        this.opts.onAnswerLocked({ questionId: question.id, matches, timeSpentS });
+      }
+      return;
+    }
+
+    if (this.state.selected.length === 0) return;
     const selectedOptionIds = [...this.state.selected];
     this.answers.set(question.id, {
       question: question.id,
@@ -231,6 +293,7 @@ export class QuizWidget {
       const result = await this.api.checkQuizAnswer(this.embedKey, {
         questionId: question.id,
         selectedOptionIds: [...this.state.selected],
+        matches: question.question_type === 'matching' ? [...this.state.selectedMatches] : undefined,
         externalRespondentId: this.opts.externalRespondentId,
       });
       if (this._destroyed) return;
@@ -290,6 +353,10 @@ export class QuizWidget {
       urgentThresholdS: QUIZ_TIMER_URGENT_THRESHOLD_S,
       isLastQuestion: this.state.currentIndex >= this._questions().length - 1,
       onToggleOption: (optionId) => this._toggleOption(optionId),
+      onSetMatchPair: (promptId, optionId) => this._setMatchPair(promptId, optionId),
+      onClearMatchPair: (promptId) => this._clearMatchPair(promptId),
+      onSelectMatchOption: (optionId) => this._setSelectedMatchOption(optionId),
+      onMatchDragActive: (active) => { this._matchDragActive = !!active; },
       onNext: () => this._next(),
       themeOverride: this.opts.theme,
       revealScoreOverride: this.opts.revealScore,
@@ -313,7 +380,12 @@ export class QuizWidget {
 
   destroy() {
     this._destroyed = true;
+    this._matchDragActive = false;
     this._clearTimer();
+    if (this.container._jpMatchGhost) {
+      this.container._jpMatchGhost.remove();
+      this.container._jpMatchGhost = null;
+    }
     this.container.innerHTML = '';
   }
 }

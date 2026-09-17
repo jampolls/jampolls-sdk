@@ -277,6 +277,226 @@
   flex: 1;
 }
 
+/* Matching — stacked prompt rows with drop slots + chip bank. Prompt side
+   uses the cyan selected-text token; match side (slots/chips) uses --jp-primary.
+   Full-width layout (no two-column grid) so sentence-length text wraps cleanly
+   in narrow embeds. */
+.jp-quiz-matching {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 14px 16px 0;
+}
+
+.jp-match-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.jp-match-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jp-match-row-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.jp-match-row-bullet {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--jp-quiz-option-selected-text);
+}
+
+.jp-match-row-text {
+  flex: 1;
+  color: var(--jp-text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.jp-match-slot {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1.5px dashed var(--jp-quiz-option-border);
+  border-radius: 14px;
+  color: var(--jp-quiz-muted-text);
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+  cursor: default;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.jp-match-slot-targetable {
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--jp-primary) 55%, transparent);
+}
+
+.jp-match-slot.over,
+.jp-match-slot:focus-visible {
+  outline: none;
+  border-style: solid;
+  border-color: var(--jp-primary);
+  background: color-mix(in srgb, var(--jp-primary) 10%, transparent);
+}
+
+.jp-match-slot.filled {
+  border-style: solid;
+  border-color: var(--jp-primary);
+  background: var(--jp-quiz-option-bg);
+  color: var(--jp-text);
+  cursor: default;
+}
+
+.jp-match-slot-placeholder {
+  color: var(--jp-quiz-muted-text);
+}
+
+.jp-match-slot-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.jp-match-slot-eject {
+  flex: 0 0 auto;
+  margin: -4px -6px -4px 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--jp-quiz-muted-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.jp-match-slot-eject:hover:not(:disabled) {
+  color: var(--jp-text);
+}
+
+.jp-match-slot-eject:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.jp-match-chip-bank {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jp-match-chip-bank-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jp-quiz-muted-text);
+}
+
+.jp-match-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jp-match-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: var(--jp-quiz-option-bg);
+  border: 1.5px solid var(--jp-quiz-option-border);
+  border-radius: 14px;
+  color: var(--jp-quiz-option-text);
+  cursor: grab;
+  text-align: left;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.4;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.jp-match-chip:hover:not(:disabled) {
+  border-color: var(--jp-quiz-option-border-hover);
+}
+
+.jp-match-chip.selected {
+  border-color: var(--jp-primary);
+  color: var(--jp-text);
+  box-shadow: 0 0 0 1px var(--jp-primary);
+}
+
+.jp-match-chip.dragging {
+  opacity: 0.35;
+  cursor: grabbing;
+}
+
+.jp-match-chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.jp-match-chip-grip {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--jp-quiz-muted-text);
+  opacity: 0.7;
+}
+
+.jp-match-chip-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.jp-match-chip-ghost {
+  position: fixed;
+  z-index: 2147483646;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 10px 14px;
+  background: var(--jp-quiz-option-bg, #2c2c2e);
+  border: 1.5px solid var(--jp-primary, #ff9724);
+  border-radius: 14px;
+  color: var(--jp-text, #f5f5f5);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.4;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.jp-match-chip-ghost .jp-match-chip-grip {
+  color: var(--jp-quiz-muted-text, #969697);
+}
+
 .jp-quiz-answer-feedback {
   margin: 14px 16px 0;
   padding: 10px 14px;

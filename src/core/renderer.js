@@ -777,6 +777,241 @@ function renderQuizOptions(question, selectedIds, onDisabled) {
   );
 }
 
+// Player matching board — stacked prompt rows with drop slots + a chip bank of
+// unassigned options (curveballs stay in the bank). Dual-mode: pointer drag
+// with a floating ghost, or tap-chip-then-tap-slot. Wired format stays
+// selectedMatches [{prompt, option}, ...].
+const MATCH_DRAG_THRESHOLD_PX = 6;
+const MATCH_GRIP_SVG =
+  '<svg class="jp-match-chip-grip" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true" focusable="false">' +
+  '<circle cx="2" cy="2" r="1.5" fill="currentColor"/>' +
+  '<circle cx="8" cy="2" r="1.5" fill="currentColor"/>' +
+  '<circle cx="2" cy="8" r="1.5" fill="currentColor"/>' +
+  '<circle cx="8" cy="8" r="1.5" fill="currentColor"/>' +
+  '<circle cx="2" cy="14" r="1.5" fill="currentColor"/>' +
+  '<circle cx="8" cy="14" r="1.5" fill="currentColor"/>' +
+  '</svg>';
+
+function renderQuizMatching(question, selectedMatches, selectedMatchOptionId, onDisabled) {
+  const prompts = question.prompts || [];
+  const options = question.match_options || [];
+  const optionById = new Map(options.map(o => [o.id, o]));
+  const optionIdByPromptId = new Map(selectedMatches.map(m => [m.prompt, m.option]));
+  const assignedOptionIds = new Set(selectedMatches.map(m => m.option));
+
+  const rowsHtml = prompts
+    .map(p => {
+      const assignedOptionId = optionIdByPromptId.get(p.id);
+      const assigned = assignedOptionId != null ? optionById.get(assignedOptionId) : null;
+      const filled = !!assigned;
+      const slotClass =
+        'jp-match-slot' +
+        (filled ? ' filled' : '') +
+        (selectedMatchOptionId != null && !filled ? ' jp-match-slot-targetable' : '');
+      const slotInner = filled
+        ? `<span class="jp-match-slot-text">${esc(assigned.text)}</span>` +
+          `<button type="button" class="jp-match-slot-eject" data-eject-prompt-id="${p.id}"` +
+          `${onDisabled ? ' disabled' : ''} aria-label="Remove match">×</button>`
+        : '<span class="jp-match-slot-placeholder">Drop match</span>';
+      return (
+        `<div class="jp-match-row">` +
+        `<div class="jp-match-row-prompt">` +
+        `<span class="jp-match-row-bullet" aria-hidden="true"></span>` +
+        `<span class="jp-match-row-text">${esc(p.text)}</span>` +
+        `</div>` +
+        `<div class="${slotClass}" data-prompt-id="${p.id}" role="button" tabindex="${onDisabled ? '-1' : '0'}"` +
+        ` aria-label="${filled ? 'Change match for ' + esc(p.text) : 'Drop match for ' + esc(p.text)}">` +
+        slotInner +
+        `</div>` +
+        `</div>`
+      );
+    })
+    .join('');
+
+  const chipsHtml = options
+    .filter(o => !assignedOptionIds.has(o.id))
+    .map(o => {
+      const selected = selectedMatchOptionId === o.id;
+      return (
+        `<button type="button" class="jp-match-chip${selected ? ' selected' : ''}"` +
+        ` data-option-id="${o.id}"${onDisabled ? ' disabled' : ''}` +
+        ` aria-pressed="${selected}">` +
+        MATCH_GRIP_SVG +
+        `<span class="jp-match-chip-text">${esc(o.text)}</span>` +
+        `</button>`
+      );
+    })
+    .join('');
+
+  return (
+    '<div class="jp-quiz-matching">' +
+    `<div class="jp-match-rows">${rowsHtml}</div>` +
+    '<div class="jp-match-chip-bank">' +
+    '<p class="jp-match-chip-bank-label">Matches</p>' +
+    `<div class="jp-match-chips">${chipsHtml}</div>` +
+    '</div>' +
+    '</div>'
+  );
+}
+
+function bindQuizMatching(container, {
+  optionsLocked,
+  onSetMatchPair,
+  onClearMatchPair,
+  onSelectMatchOption,
+  onMatchDragActive,
+}) {
+  if (optionsLocked) return;
+
+  const matchingRoot = container.querySelector('.jp-quiz-matching');
+  if (!matchingRoot) return;
+
+  matchingRoot.querySelectorAll('.jp-match-slot-eject').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const promptId = Number(btn.dataset.ejectPromptId);
+      if (Number.isFinite(promptId) && onClearMatchPair) onClearMatchPair(promptId);
+    });
+  });
+
+  const placeOrSelect = (promptId) => {
+    if (!Number.isFinite(promptId) || !onSetMatchPair) return;
+    // Tap-to-place: if a chip is selected, assign it; otherwise no-op on empty
+    // slots (filled slots are cleared via the eject button).
+    const selectedChip = matchingRoot.querySelector('.jp-match-chip.selected');
+    if (!selectedChip) return;
+    const optionId = Number(selectedChip.dataset.optionId);
+    if (Number.isFinite(optionId)) onSetMatchPair(promptId, optionId);
+  };
+
+  matchingRoot.querySelectorAll('.jp-match-slot').forEach(slot => {
+    const activate = () => {
+      const promptId = Number(slot.dataset.promptId);
+      placeOrSelect(promptId);
+    };
+    slot.addEventListener('click', (e) => {
+      if (e.target.closest('.jp-match-slot-eject')) return;
+      activate();
+    });
+    slot.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activate();
+      }
+    });
+  });
+
+  matchingRoot.querySelectorAll('.jp-match-chip').forEach(chip => {
+    chip.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      const optionId = Number(chip.dataset.optionId);
+      if (!Number.isFinite(optionId)) return;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let dragging = false;
+      let ghost = null;
+      let overSlot = null;
+
+      const clearOver = () => {
+        if (overSlot) {
+          overSlot.classList.remove('over');
+          overSlot = null;
+        }
+      };
+
+      const cleanup = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+        clearOver();
+        if (ghost) {
+          ghost.remove();
+          if (container._jpMatchGhost === ghost) container._jpMatchGhost = null;
+          ghost = null;
+        }
+        chip.classList.remove('dragging');
+        if (onMatchDragActive) onMatchDragActive(false);
+      };
+
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!dragging) {
+          if (dx * dx + dy * dy < MATCH_DRAG_THRESHOLD_PX * MATCH_DRAG_THRESHOLD_PX) return;
+          dragging = true;
+          if (onMatchDragActive) onMatchDragActive(true);
+          chip.classList.add('dragging');
+          ghost = document.createElement('div');
+          ghost.className = 'jp-match-chip-ghost';
+          ghost.innerHTML = MATCH_GRIP_SVG + '<span class="jp-match-chip-text"></span>';
+          const ghostText = ghost.querySelector('.jp-match-chip-text');
+          if (ghostText) {
+            ghostText.textContent = chip.querySelector('.jp-match-chip-text')?.textContent || '';
+          }
+          // Append to body so .jp-widget { overflow: hidden } can't clip the
+          // floating chip while dragging outside the embed bounds. Copy the
+          // widget's theme tokens onto the ghost so it still matches.
+          const widget = container.querySelector('.jp-widget');
+          if (widget) {
+            const cs = getComputedStyle(widget);
+            [
+              '--jp-primary',
+              '--jp-text',
+              '--jp-quiz-option-bg',
+              '--jp-quiz-muted-text',
+            ].forEach((prop) => {
+              const val = cs.getPropertyValue(prop).trim();
+              if (val) ghost.style.setProperty(prop, val);
+            });
+            ghost.style.fontFamily = cs.fontFamily;
+          }
+          document.body.appendChild(ghost);
+          container._jpMatchGhost = ghost;
+          try { chip.setPointerCapture(ev.pointerId); } catch (_) { /* ignore */ }
+          if (ev.cancelable) ev.preventDefault();
+        }
+        if (!ghost) return;
+        if (ev.cancelable) ev.preventDefault();
+        const gw = ghost.offsetWidth || 200;
+        ghost.style.left = `${ev.clientX - gw / 2}px`;
+        ghost.style.top = `${ev.clientY - 20}px`;
+
+        ghost.style.pointerEvents = 'none';
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        ghost.style.pointerEvents = '';
+        const slot = el?.closest?.('.jp-match-slot');
+        // Only highlight slots that belong to this widget instance.
+        const validSlot = slot && matchingRoot.contains(slot) ? slot : null;
+        if (validSlot !== overSlot) {
+          clearOver();
+          overSlot = validSlot;
+          if (overSlot) overSlot.classList.add('over');
+        }
+      };
+
+      const onUp = () => {
+        const wasDragging = dragging;
+        const dropSlot = overSlot;
+        cleanup();
+        if (wasDragging) {
+          if (dropSlot && onSetMatchPair) {
+            const promptId = Number(dropSlot.dataset.promptId);
+            if (Number.isFinite(promptId)) onSetMatchPair(promptId, optionId);
+          }
+          return;
+        }
+        // Tap (no real drag): toggle chip selection for tap-then-tap-slot.
+        if (onSelectMatchOption) onSelectMatchOption(optionId);
+      };
+
+      document.addEventListener('pointermove', onMove, { passive: false });
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
+    });
+  });
+}
+
 function renderQuizProgress(total, currentIndex) {
   const segments = Array.from({ length: Math.max(total, 1) }, (_, i) =>
     `<span class="jp-quiz-progress-segment${i <= currentIndex ? ' jp-quiz-progress-segment-filled' : ''}"></span>`
@@ -858,6 +1093,8 @@ export function renderQuiz(container, data, state) {
     attemptStatus,
     currentQuestion,
     selected,
+    selectedMatches,
+    selectedMatchOptionId,
     timeRemainingMs,
     urgentThresholdS,
     isLastQuestion,
@@ -874,6 +1111,10 @@ export function renderQuiz(container, data, state) {
     answerFeedback,
     checkingAnswer,
     onToggleOption,
+    onSetMatchPair,
+    onClearMatchPair,
+    onSelectMatchOption,
+    onMatchDragActive,
     onNext,
   } = state;
 
@@ -912,7 +1153,11 @@ export function renderQuiz(container, data, state) {
       '</div>' +
       `<h2 class="jp-quiz-question jp-quiz-motion-enter">${esc(currentQuestion?.text || '')}</h2>` +
       (questionImage ? `<img class="jp-quiz-question-image" src="${esc(questionImage)}" alt="">` : '') +
-      (currentQuestion ? renderQuizOptions(currentQuestion, selected, optionsLocked) : '') +
+      (currentQuestion
+        ? currentQuestion.question_type === 'matching'
+          ? renderQuizMatching(currentQuestion, selectedMatches, selectedMatchOptionId, optionsLocked)
+          : renderQuizOptions(currentQuestion, selected, optionsLocked)
+        : '') +
       answerFeedbackHtml +
       feedbackHtml +
       `<button type="button" class="jp-quiz-next"${nextDisabled ? ' disabled' : ''}>${nextLabel}</button>`;
@@ -940,6 +1185,13 @@ export function renderQuiz(container, data, state) {
       const optionId = Number(btn.dataset.id);
       if (!optionsLocked && Number.isFinite(optionId) && onToggleOption) onToggleOption(optionId);
     });
+  });
+  bindQuizMatching(container, {
+    optionsLocked,
+    onSetMatchPair,
+    onClearMatchPair,
+    onSelectMatchOption,
+    onMatchDragActive,
   });
 
   const nextBtn = container.querySelector('.jp-quiz-next');

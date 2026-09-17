@@ -83,14 +83,15 @@ export class JampollsApi {
    * instant_feedback setting is on — the endpoint 403s otherwise). Never
    * returns the answer key, just whether the given selection was correct.
    */
-  async checkQuizAnswer(embedKey, { questionId, selectedOptionIds, externalRespondentId }) {
+  async checkQuizAnswer(embedKey, { questionId, selectedOptionIds, matches, externalRespondentId }) {
     const anonymousId = await getVoterId(this.baseUrl);
     const res = await fetch(`${this.baseUrl}/api/v1/embeds/public/${embedKey}/quiz-question-check/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-SDK-Version': SDK_VERSION },
       body: JSON.stringify({
         question_id: questionId,
-        option_ids: selectedOptionIds,
+        // matching only — replaces option_ids for this question.
+        ...(matches ? { matches } : { option_ids: selectedOptionIds }),
         anonymous_id: anonymousId,
         external_respondent_id: externalRespondentId || '',
       }),
@@ -108,7 +109,8 @@ export class JampollsApi {
    * @param {Object} opts
    * @param {string} opts.embedKey - Links the response back to this embed for
    *   retake-policy enforcement and the completion webhook.
-   * @param {Array<{question: number, selected_options: Array<{option: number}>, time_spent?: number}>} opts.answers
+   * @param {Array<{question: number, selected_options?: Array<{option: number}>, matches?: Array<{prompt: number, option: number}>, time_spent?: number}>} opts.answers
+   *   For matching questions, `matches` replaces `selected_options`.
    * @param {number} [opts.totalTimeSpent] - Seconds, whole attempt.
    * @param {string} [opts.externalRespondentId]
    */

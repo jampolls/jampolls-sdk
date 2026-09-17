@@ -77,8 +77,14 @@ export interface WidgetOptions {
   passThreshold?: number | null;
   /** Quiz widget only. Called once, when the first question is shown (not called if the visitor is blocked by retake policy). */
   onQuizStart?: () => void;
-  /** Quiz widget only. Called each time an answer is locked in — when moving off a question, not on every option click. */
-  onAnswerLocked?: (event: { questionId: number; selectedOptionIds: number[]; timeSpentS: number }) => void;
+  /** Quiz widget only. Called each time an answer is locked in — when moving off a question, not on every option click.
+   *  For question_type='matching', `matches` is set instead of `selectedOptionIds`. */
+  onAnswerLocked?: (event: {
+    questionId: number;
+    selectedOptionIds?: number[];
+    matches?: Array<{ prompt: number; option: number }>;
+    timeSpentS: number;
+  }) => void;
   /** Quiz widget only. Called after the final submission, with the full score breakdown. */
   onQuizComplete?: (result: QuizResults) => void;
 }
@@ -179,16 +185,36 @@ export interface QuizOption {
   order: number;
 }
 
+/** matching only — the left-hand column. No correct_option: an embed visitor
+ *  never sees the answer key before submitting. */
+export interface QuizMatchPrompt {
+  id: number;
+  text: string;
+  order: number;
+}
+
+/** matching only — the right-hand match bank (may outnumber the prompts;
+ *  unmatched entries are distractors). */
+export interface QuizMatchOption {
+  id: number;
+  text: string;
+  order: number;
+}
+
 export interface QuizQuestion {
   id: number;
   text: string;
-  question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'matching';
   image: string | null;
   order: number;
   points_value: number;
   /** Seconds, or null for no per-question timer. */
   time_limit: number | null;
+  /** Empty for question_type='matching' — see prompts/match_options instead. */
   options: QuizOption[];
+  /** matching only — mirrors `options` for choice types. */
+  prompts?: QuizMatchPrompt[];
+  match_options?: QuizMatchOption[];
 }
 
 export interface QuizData {
